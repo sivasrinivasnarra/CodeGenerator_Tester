@@ -1,0 +1,41 @@
+# AI Model API Keys
+OPENAI_API_KEY=your_openai_api_key_here
+GOOGLE_API_KEY=your_google_api_key_here
+CLAUDE_API_KEY=your_claude_api_key_here
+GROK4_API_KEY=your_grok4_api_key_here
+
+# Model Configuration
+DEFAULT_MODEL=gemini-2.5-pro
+FALLBACK_MODEL=gemini-pro
+TEMPERATURE=0.7
+MAX_TOKENS=4000
+
+# Application Settings
+DEBUG=True
+LOG_LEVEL=INFO
+
+# File Paths
+GENERATED_CODE_DIR=generated/code
+GENERATED_TESTS_DIR=generated/tests
+ASSESSMENTS_DIR=generated/assessments
+
+# Self-Healing Configuration
+MAX_HEALING_ATTEMPTS=5
+DOCKER_TIMEOUT=540
+HEALING_MODEL=claude-opus-4-20250514
+
+# Docker Settings
+DOCKER_IMAGE=python:3.11-slim
+DOCKER_MEMORY_LIMIT=512m
+DOCKER_CPU_LIMIT=1.0
+
+# Database (Optional)
+DATABASE_URL=sqlite:///project_tester.db
+
+# Security
+SECRET_KEY=your-secret-key-here
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# Performance
+WORKER_PROCESSES=1
+MAX_CONCURRENT_REQUESTS=5 

@@ -1,0 +1,3 @@
+# Template files with Jinja2 syntax
+*.py linguist-language=Jinja2
+*.py linguist-detectable=false 
