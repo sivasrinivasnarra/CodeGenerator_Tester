@@ -15,70 +15,218 @@ import requests
 from dotenv import load_dotenv
 
 # Import core modules
-from core import AIEngine, CodeGenerator, TestGenerator, ErrorHandler
-from utils.file_manager import FileManager, DockerSandbox
-from utils.code_analyzer import CodeAnalyzer
-from utils.templates import TemplateManager
+from core import AIEngine, Generator, ErrorHandler, FileManager
+from core.file_manager import DockerSandbox
 
 # Page configuration
 st.set_page_config(
-    page_title="AI-Powered Development Assistant",
+    page_title="DevelopmentAssistant.ai by WL Labs",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Custom CSS for better styling (blue theme)
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #1f77b4;
-        text-align: center;
-        margin-bottom: 2rem;
+    :root {
+        --primary-700: #0d47a1;
+        --primary-600: #1565c0;
+        --primary-500: #1976d2;
+        --primary-400: #1e88e5;
+        --primary-300: #42a5f5;
+        --surface: #f5f8ff;
+        --card: #ffffff;
+        --text-900: #0f172a;
+        --text-700: #334155;
+        --text-500: #64748b;
     }
+
+    .main-hero {
+        background: linear-gradient(135deg, var(--primary-700), var(--primary-500));
+        color: #fff;
+        padding: 24px 28px;
+        border-radius: 14px;
+        margin: 8px 0 24px 0;
+        box-shadow: 0 6px 20px rgba(13, 71, 161, 0.25);
+        text-align: center;
+    }
+    .main-hero h1 {
+        margin: 0;
+        font-size: 2.1rem;
+        font-weight: 800;
+        letter-spacing: 0.2px;
+    }
+    .main-hero p {
+        margin: 6px 0 0 0;
+        font-size: 0.98rem;
+        color: rgba(255,255,255,0.9);
+    }
+
     .feature-card {
-        background-color: #f0f2f6;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin: 0.5rem 0;
+        background-color: var(--card);
+        padding: 16px;
+        border-radius: 12px;
+        margin: 10px 0;
+        border: 1px solid rgba(25, 118, 210, 0.12);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
     }
     .success-box {
-        background-color: #d4edda;
-        border: 1px solid #c3e6cb;
-        border-radius: 0.5rem;
-        padding: 1rem;
-        margin: 1rem 0;
+        background: #eaf2ff;
+        border: 1px solid #cfe0ff;
+        border-radius: 10px;
+        padding: 14px;
+        margin: 12px 0;
     }
     .warning-box {
-        background-color: #fff3cd;
-        border: 1px solid #ffeaa7;
-        border-radius: 0.5rem;
-        padding: 1rem;
-        margin: 1rem 0;
+        background: #f3f6fc;
+        border: 1px solid #e2e8f5;
+        border-radius: 10px;
+        padding: 14px;
+        margin: 12px 0;
     }
     .upload-area {
-        border: 2px dashed #ccc;
-        border-radius: 0.5rem;
-        padding: 2rem;
+        border: 2px dashed rgba(25, 118, 210, 0.35);
+        border-radius: 12px;
+        padding: 22px;
         text-align: center;
-        background-color: #fafafa;
+        background-color: #f8fbff;
     }
     .tech-stack-card {
         background-color: #e3f2fd;
         border: 1px solid #bbdefb;
-        border-radius: 0.5rem;
-        padding: 1rem;
-        margin: 0.5rem 0;
+        border-radius: 10px;
+        padding: 14px;
+        margin: 10px 0;
     }
     body {
-        background-color: #f8f9fa;
-        font-family: "Segoe UI", sans-serif;
+        background-color: var(--surface);
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+        color: var(--text-900);
     }
     .stButton>button {
-        border-radius: 4px;
+        border-radius: 8px;
         padding: 0.5rem 1rem;
+        background: linear-gradient(135deg, var(--primary-600), var(--primary-400));
+        color: #fff;
+        border: 0;
+        box-shadow: 0 4px 12px rgba(30, 136, 229, 0.35);
     }
+    .stButton>button:hover {
+        background: linear-gradient(135deg, var(--primary-700), var(--primary-500));
+    }
+
+    /* Tabs styling */
+    div[role="tablist"] > div {
+        background: #ffffff;
+        border: 1px solid rgba(25, 118, 210, 0.12) !important;
+        color: var(--text-700) !important;
+        border-radius: 10px 10px 0 0 !important;
+        margin-right: 6px;
+        padding: 6px 10px !important;
+    }
+    div[role="tablist"] > div[aria-selected="true"] {
+        border-bottom: 3px solid var(--primary-500) !important;
+        color: var(--primary-600) !important;
+        font-weight: 700 !important;
+        background: linear-gradient(180deg, rgba(30,136,229,0.08), rgba(30,136,229,0.02));
+    }
+
+    /* Streamlit UI kit overrides to enforce blue */
+    .stRadio > label, .stCheckbox > label, .stSlider > label {
+        color: var(--text-900) !important;
+    }
+    .stRadio div[role='radiogroup'] > label[data-baseweb='radio'] svg, .stCheckbox svg {
+        fill: var(--primary-500) !important;
+        color: var(--primary-500) !important;
+    }
+    .stRadio div[role='radiogroup'] input:checked + div svg {
+        fill: var(--primary-600) !important;
+        color: var(--primary-600) !important;
+    }
+    /* Slider */
+    .stSlider [data-baseweb='slider'] div[role='slider'] {
+        background: var(--primary-500) !important;
+        border-color: var(--primary-500) !important;
+    }
+    .stSlider [data-baseweb='slider'] div[role='slider']::after {
+        background: var(--primary-600) !important;
+    }
+
+    /* Force blue accents for radios, checkboxes, sliders, toggles */
+    :root {
+        --primary-color: #1e88e5; /* Streamlit theme var */
+    }
+    input[type="radio"], input[type="checkbox"], input[type="range"] {
+        accent-color: var(--primary-500) !important;
+    }
+    /* Baseweb (used by Streamlit) specific radio/slider overrides */
+    /* Radio */
+    .stRadio [data-baseweb='radio']>div:first-child {
+        border-color: var(--primary-500) !important;
+    }
+    .stRadio [data-baseweb='radio'][aria-checked='true']>div:first-child {
+        background-color: var(--primary-500) !important;
+        border-color: var(--primary-500) !important;
+    }
+    .stRadio [data-baseweb='radio'] svg {
+        color: var(--primary-500) !important;
+        fill: var(--primary-500) !important;
+    }
+    [data-baseweb="slider"] div[role="slider"], [data-baseweb="slider"] div[role="slider"]::before {
+        background-color: var(--primary-500) !important;
+        border-color: var(--primary-500) !important;
+    }
+    [data-baseweb="slider"] div[aria-valuenow] {
+        color: var(--text-700) !important;
+    }
+    /* Slider track colors */
+    .stSlider [data-baseweb='slider']>div:first-child {
+        background-color: rgba(30,136,229,0.25) !important; /* base track */
+    }
+    .stSlider [data-baseweb='slider']>div:nth-child(2) {
+        background-color: var(--primary-500) !important; /* active track */
+    }
+    .stSlider span, .stSlider label {
+        color: var(--text-700) !important; /* numbers under slider */
+    }
+    [role="switch"], [data-baseweb="switch"] {
+        border-color: rgba(25,118,210,0.35) !important;
+    }
+    [role="switch"][aria-checked="true"], [data-baseweb="switch"] [aria-checked="true"] {
+        background-color: var(--primary-500) !important;
+        border-color: var(--primary-500) !important;
+    }
+
+    /* Tabs highlight bar (BaseWeb) */
+    .stTabs [data-baseweb='tab-highlight'] {
+        background-color: var(--primary-500) !important;
+    }
+
+    /* Badges and chips */
+    .badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(25,118,210,0.12);
+        color: #0d47a1;
+        border: 1px solid rgba(25,118,210,0.25);
+        font-size: 12px;
+        font-weight: 600;
+        margin-right: 6px;
+    }
+    .badge.ok { background: rgba(25,118,210,0.12); color: #0d47a1; border-color: rgba(25,118,210,0.25); }
+    .badge.warn { background: rgba(25,118,210,0.08); color: #0f172a; border-color: rgba(25,118,210,0.18); }
+
+    .kpi-card {
+        background: #ffffff;
+        border: 1px solid rgba(25,118,210,0.12);
+        border-radius: 12px;
+        padding: 12px 14px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+        text-align: center;
+    }
+    .kpi-card .label { color: var(--text-500); font-size: 12px; }
+    .kpi-card .value { color: var(--primary-600); font-size: 22px; font-weight: 800; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -107,12 +255,9 @@ if 'last_main_file_name' not in st.session_state:
 def initialize_components():
     return {
         'ai_engine': AIEngine(),
-        'code_generator': CodeGenerator(),
-        'test_generator': TestGenerator(),
+        'generator': Generator(),
         'error_handler': ErrorHandler(),
-        'file_manager': FileManager(),
-        'code_analyzer': CodeAnalyzer(),
-        'template_manager': TemplateManager()
+        'file_manager': FileManager()
     }
 
 components = initialize_components()
@@ -221,7 +366,8 @@ def list_python_files(project_dir: str) -> list[str]:
     py_files = []
     for root, _, files in os.walk(project_dir):
         for f in files:
-            if f.endswith('.py'):
+            # Skip macOS metadata files and hidden files
+            if f.endswith('.py') and not f.startswith('._') and not f.startswith('.DS_Store'):
                 py_files.append(os.path.join(root, f))
     return py_files
 
@@ -305,7 +451,6 @@ def suggest_tech_stack(requirement_text, ai_engine, model="gpt-4o-mini"):
         
         # Try to parse JSON from response
         try:
-            import json
             import re
             
             # Clean the response - remove any markdown formatting
@@ -323,17 +468,17 @@ def suggest_tech_stack(requirement_text, ai_engine, model="gpt-4o-mini"):
             end_idx = cleaned_response.rfind(']') + 1
             
             if start_idx != -1 and end_idx != 0:
-                json_str = cleaned_response[start_idx:end_idx]
+                array_str = cleaned_response[start_idx:end_idx]
                 # Remove any extra data after the last closing bracket
-                json_str = json_str[:json_str.rfind(']')+1]
-                result = json.loads(json_str)
+                array_str = array_str[:array_str.rfind(']')+1]
+                result = json.loads(array_str)
                 
                 # Validate the structure
                 if isinstance(result, list) and len(result) > 0:
                     return result
                 else:
                     st.error("Invalid tech stack response structure")
-                    return _get_fallback_tech_stacks()
+                    return []
             else:
                 # Try parsing the entire response as JSON
                 result = json.loads(cleaned_response)
@@ -341,2147 +486,20 @@ def suggest_tech_stack(requirement_text, ai_engine, model="gpt-4o-mini"):
                     return result
                 else:
                     st.error("Response is not a valid JSON array")
-                    return _get_fallback_tech_stacks()
+                    return []
                     
         except json.JSONDecodeError as e:
             st.error(f"Failed to parse tech stack response as JSON: {str(e)}")
             st.error("Raw response preview:")
             st.code(response[:500] + "..." if len(response) > 500 else response)
-            st.info("Using fallback tech stack suggestions...")
-            return _get_fallback_tech_stacks()
+            st.error("AI model failed to generate valid tech stack suggestions. Please try again.")
+            return []
             
     except Exception as e:
-        handle_and_display_error(e, "suggest_tech_stack")
-        return _get_fallback_tech_stacks()
+        st.error(f"Error generating tech stack suggestions: {str(e)}")
+        return []
 
-def _get_fallback_tech_stacks():
-    """Provide fallback tech stack suggestions when AI fails"""
-    return [
-        {
-            "id": 1,
-            "name": "Python Django Stack",
-            "language": "Python 3.11",
-            "framework": "Django 4.2",
-            "database": "PostgreSQL",
-            "dependencies": ["django", "psycopg2", "djangorestframework", "celery"],
-            "tools": ["pip", "virtualenv", "git", "docker"],
-            "deployment": "Docker + AWS",
-            "pros": ["Rapid development", "Built-in admin", "Large ecosystem", "Mature framework"],
-            "cons": ["Monolithic", "Learning curve", "Less flexible"],
-            "complexity": "Intermediate",
-            "estimated_time": "4-6 weeks",
-            "best_use_case": "Web applications with complex business logic"
-        },
-        {
-            "id": 2,
-            "name": "React Node.js Stack",
-            "language": "JavaScript/TypeScript",
-            "framework": "React 18 + Node.js",
-            "database": "MongoDB",
-            "dependencies": ["react", "express", "mongoose", "socket.io"],
-            "tools": ["npm", "webpack", "eslint", "jest"],
-            "deployment": "Vercel + MongoDB Atlas",
-            "pros": ["Fast development", "Rich ecosystem", "Scalable", "Real-time capable"],
-            "cons": ["Complex setup", "Many dependencies", "JavaScript fatigue"],
-            "complexity": "Advanced",
-            "estimated_time": "6-8 weeks",
-            "best_use_case": "Modern web applications with real-time features"
-        },
-        {
-            "id": 3,
-            "name": "Python FastAPI Stack",
-            "language": "Python 3.11",
-            "framework": "FastAPI",
-            "database": "SQLite/PostgreSQL",
-            "dependencies": ["fastapi", "uvicorn", "sqlalchemy", "pydantic"],
-            "tools": ["pip", "poetry", "git", "docker"],
-            "deployment": "Docker + Cloud Run",
-            "pros": ["Fast performance", "Auto documentation", "Type hints", "Modern"],
-            "cons": ["Newer ecosystem", "Less mature", "Smaller community"],
-            "complexity": "Intermediate",
-            "estimated_time": "3-5 weeks",
-            "best_use_case": "API-first applications and microservices"
-        }
-    ]
 
-def _get_fallback_code(tech_stack_name, requirement):
-    """Generate fallback code templates when AI is not available"""
-    
-    if "Django" in tech_stack_name:
-        return {
-            "main_code": {
-                "success": True,
-                "files": {
-                    "main.py": f'''"""
-{requirement}
-
-Django Application Template
-"""
-
-import os
-import django
-from django.core.wsgi import get_wsgi_application
-
-# Django settings
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-django.setup()
-
-# WSGI application
-application = get_wsgi_application()
-
-if __name__ == "__main__":
-    from django.core.management import execute_from_command_line
-    execute_from_command_line(sys.argv)
-''',
-                    "config.py": '''"""
-Configuration settings for Django application
-"""
-
-import os
-from pathlib import Path
-
-# Build paths inside the project
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'your-secret-key-here'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
-# Application definition
-INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-]
-
-MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
-
-ROOT_URLCONF = 'config.urls'
-
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
-    },
-]
-
-WSGI_APPLICATION = 'config.wsgi.application'
-
-# Database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
-# Static files (CSS, JavaScript, Images)
-STATIC_URL = 'static/'
-
-# Default primary key field type
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-''',
-                    "utils.py": '''"""
-Utility functions for the application
-"""
-
-import logging
-from typing import Any, Dict, List
-
-logger = logging.getLogger(__name__)
-
-def setup_logging():
-    """Setup logging configuration"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-
-def validate_input(data: Dict[str, Any]) -> bool:
-    """Validate input data"""
-    if not isinstance(data, dict):
-        return False
-    return True
-
-def format_response(data: Any) -> Dict[str, Any]:
-    """Format response data"""
-    return {
-        "success": True,
-        "data": data,
-        "timestamp": "2024-01-01T00:00:00Z"
-    }
-''',
-                    "models.py": '''"""
-Database models for Django application
-"""
-
-from django.db import models
-from django.contrib.auth.models import User
-
-class BaseModel(models.Model):
-    """Base model with common fields"""
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        abstract = True
-
-class ExampleModel(BaseModel):
-    """Example model for demonstration"""
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
-    is_active = models.BooleanField(default=True)
-    
-    def __str__(self):
-        return self.name
-''',
-                    "api.py": '''"""
-API endpoints for Django application
-"""
-
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-import json
-from .models import ExampleModel
-
-@csrf_exempt
-@require_http_methods(["GET"])
-def health_check(request):
-    """Health check endpoint"""
-    return JsonResponse({
-        "status": "healthy",
-        "timestamp": "2024-01-01T00:00:00Z"
-    })
-
-@csrf_exempt
-@require_http_methods(["GET", "POST"])
-def api_example(request):
-    """Example API endpoint"""
-    if request.method == "GET":
-        return JsonResponse({
-            "message": "Hello from Django API",
-            "method": "GET"
-        })
-    elif request.method == "POST":
-        data = json.loads(request.body)
-        return JsonResponse({
-            "message": "Data received",
-            "data": data,
-            "method": "POST"
-        })
-'''
-                }
-            },
-            "test_code": {
-                "success": True,
-                "test_files": {
-                    "test_main.py": '''"""
-Test cases for main application
-"""
-
-import unittest
-from django.test import TestCase
-from django.urls import reverse
-
-class MainAppTestCase(TestCase):
-    """Test cases for main application functionality"""
-    
-    def setUp(self):
-        """Set up test data"""
-        pass
-    
-    def test_home_page(self):
-        """Test home page loads correctly"""
-        response = self.client.get('/')
-        self.assertEqual(response.status_code, 200)
-    
-    def test_health_check(self):
-        """Test health check endpoint"""
-        response = self.client.get('/health/')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('status', response.json())
-''',
-                    "test_utils.py": '''"""
-Test cases for utility functions
-"""
-
-import unittest
-from utils import validate_input, format_response
-
-class UtilsTestCase(unittest.TestCase):
-    """Test cases for utility functions"""
-    
-    def test_validate_input_valid(self):
-        """Test input validation with valid data"""
-        data = {"key": "value"}
-        self.assertTrue(validate_input(data))
-    
-    def test_validate_input_invalid(self):
-        """Test input validation with invalid data"""
-        data = "not a dict"
-        self.assertFalse(validate_input(data))
-    
-    def test_format_response(self):
-        """Test response formatting"""
-        data = {"test": "data"}
-        response = format_response(data)
-        
-        self.assertIn("success", response)
-        self.assertIn("data", response)
-        self.assertIn("timestamp", response)
-        self.assertTrue(response["success"])
-        self.assertEqual(response["data"], data)
-
-if __name__ == '__main__':
-    unittest.main()
-''',
-                    "test_models.py": '''"""
-Test cases for database models
-"""
-
-from django.test import TestCase
-from .models import ExampleModel
-
-class ExampleModelTestCase(TestCase):
-    """Test cases for ExampleModel"""
-    
-    def test_model_creation(self):
-        """Test model creation"""
-        model = ExampleModel.objects.create(
-            name="Test Model",
-            description="Test Description"
-        )
-        self.assertEqual(model.name, "Test Model")
-        self.assertEqual(model.description, "Test Description")
-        self.assertTrue(model.is_active)
-    
-    def test_model_str_representation(self):
-        """Test string representation"""
-        model = ExampleModel.objects.create(name="Test Model")
-        self.assertEqual(str(model), "Test Model")
-''',
-                    "conftest.py": '''"""
-Pytest configuration and fixtures
-"""
-
-import pytest
-from django.conf import settings
-
-@pytest.fixture
-def example_data():
-    """Fixture for example data"""
-    return {
-        "name": "Test Example",
-        "description": "Test Description",
-        "is_active": True
-    }
-
-@pytest.fixture
-def api_client():
-    """Fixture for API client"""
-    from rest_framework.test import APIClient
-    return APIClient()
-'''
-                }
-            },
-            "additional_files": {
-                "success": True,
-                "additional_files": {
-                    "requirements.txt": '''# Django Project Dependencies
-
-# Core Django
-Django==4.2.7
-djangorestframework==3.14.0
-
-# Database
-psycopg2-binary==2.9.7
-
-# Development
-pytest==7.4.3
-pytest-django==4.5.2
-black==23.9.1
-flake8==6.1.0
-
-# Production
-gunicorn==21.2.0
-whitenoise==6.5.0
-
-# Environment
-python-dotenv==1.0.0
-''',
-                    "README.md": f'''# Django Project
-
-{requirement}
-
-## Setup
-
-1. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-2. Run migrations:
-```bash
-python manage.py migrate
-```
-
-3. Start development server:
-```bash
-python manage.py runserver
-```
-
-## Testing
-
-Run tests with:
-```bash
-pytest
-```
-
-## Deployment
-
-Use the provided Dockerfile and docker-compose.yml for deployment.
-''',
-                    ".env.example": '''# Django Environment Variables
-
-# Django Settings
-SECRET_KEY=your-secret-key-here
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
-
-# Database
-DATABASE_URL=sqlite:///db.sqlite3
-
-# Static Files
-STATIC_URL=/static/
-STATIC_ROOT=staticfiles/
-
-# Logging
-LOG_LEVEL=INFO
-''',
-                    ".gitignore": '''# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Django
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-media/
-staticfiles/
-
-# Environment
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-''',
-                    "Dockerfile": '''# Django Dockerfile
-
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \\
-    gcc \\
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy project files
-COPY . .
-
-# Collect static files
-RUN python manage.py collectstatic --noinput
-
-# Expose port
-EXPOSE 8000
-
-# Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "config.wsgi:application"]
-''',
-                    "docker-compose.yml": '''# Django Docker Compose
-
-version: '3.8'
-
-services:
-  web:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      - DEBUG=False
-      - DATABASE_URL=postgresql://postgres:password@db:5432/django_db
-    depends_on:
-      - db
-    volumes:
-      - .:/app
-      - static_volume:/app/staticfiles
-      - media_volume:/app/media
-
-  db:
-    image: postgres:13
-    environment:
-      - POSTGRES_DB=django_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
-  static_volume:
-  media_volume:
-''',
-                    "Makefile": '''# Django Makefile
-
-.PHONY: help install test run clean
-
-help:
-	@echo "Available commands:"
-	@echo "  install  - Install dependencies"
-	@echo "  test     - Run tests"
-	@echo "  run      - Start development server"
-	@echo "  clean    - Clean up files"
-
-install:
-	pip install -r requirements.txt
-
-test:
-	pytest
-
-run:
-	python manage.py runserver
-
-clean:
-	find . -type f -name "*.pyc" -delete
-	find . -type d -name "__pycache__" -delete
-''',
-                    "scripts/deploy.sh": '''#!/bin/bash
-
-# Django Deployment Script
-
-echo "Starting deployment..."
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run migrations
-python manage.py migrate
-
-# Collect static files
-python manage.py collectstatic --noinput
-
-# Start the application
-gunicorn --bind 0.0.0.0:8000 config.wsgi:application
-''',
-                    "docs/API.md": '''# Django API Documentation
-
-## Endpoints
-
-### Health Check
-- **GET** `/health/`
-- Returns application health status
-
-### Example API
-- **GET** `/api/example/`
-- Returns example data
-- **POST** `/api/example/`
-- Accepts JSON data and returns confirmation
-
-## Authentication
-
-Currently, no authentication is required for these endpoints.
-
-## Response Format
-
-All responses are in JSON format:
-
-```json
-{
-    "status": "success",
-    "data": {},
-    "timestamp": "2024-01-01T00:00:00Z"
-}
-```
-'''
-                }
-            }
-        }
-    elif "Flask" in tech_stack_name:
-        return {
-            "main_code": {
-                "success": True,
-                "files": {
-                    "main.py": f'''"""
-{requirement}
-
-Flask Application Template
-"""
-
-from flask import Flask, render_template, request, jsonify
-import os
-from datetime import datetime
-
-app = Flask(__name__)
-
-# Configuration
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
-app.config['DEBUG'] = os.environ.get('DEBUG', 'True').lower() == 'true'
-
-@app.route('/')
-def home():
-    """Home page route"""
-    return render_template('index.html', title='Flask App')
-
-@app.route('/api/health')
-def health_check():
-    """Health check endpoint"""
-    return jsonify({{
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat(),
-        'service': 'Flask Application'
-    }})
-
-@app.route('/api/data', methods=['GET', 'POST'])
-def handle_data():
-    """Handle data requests"""
-    if request.method == 'GET':
-        return jsonify({{
-            'message': 'Data endpoint',
-            'method': 'GET',
-            'data': {{'example': 'value'}}
-        }})
-    elif request.method == 'POST':
-        data = request.get_json()
-        return jsonify({{
-            'message': 'Data received',
-            'method': 'POST',
-            'data': data
-        }})
-
-@app.errorhandler(404)
-def not_found(error):
-    """Handle 404 errors"""
-    return jsonify({{'error': 'Not found'}}), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    """Handle 500 errors"""
-    return jsonify({{'error': 'Internal server error'}}), 500
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=app.config['DEBUG'])
-''',
-                    "config.py": '''"""
-Configuration settings for Flask application
-"""
-
-import os
-from pathlib import Path
-
-class Config:
-    """Base configuration class"""
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key'
-    DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
-    DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///app.db')
-    
-    @staticmethod
-    def init_app(app):
-        pass
-
-class DevelopmentConfig(Config):
-    """Development configuration"""
-    DEBUG = True
-
-class ProductionConfig(Config):
-    """Production configuration"""
-    DEBUG = False
-
-config = {
-    'development': DevelopmentConfig,
-    'production': ProductionConfig,
-    'default': DevelopmentConfig
-}
-''',
-                    "utils.py": '''"""
-Utility functions for Flask application
-"""
-
-import logging
-from typing import Any, Dict
-from datetime import datetime
-
-def setup_logging():
-    """Setup logging configuration"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-
-def validate_input(data: Dict[str, Any]) -> bool:
-    """Validate input data"""
-    if not isinstance(data, dict):
-        return False
-    return True
-
-def format_response(data: Any) -> Dict[str, Any]:
-    """Format response data"""
-    return {
-        "success": True,
-        "data": data,
-        "timestamp": datetime.now().isoformat()
-    }
-
-def create_error_response(message: str, status_code: int = 400) -> Dict[str, Any]:
-    """Create error response"""
-    return {
-        "success": False,
-        "error": message,
-        "status_code": status_code,
-        "timestamp": datetime.now().isoformat()
-    }
-''',
-                    "models.py": '''"""
-Database models for Flask application
-"""
-
-from datetime import datetime
-from typing import Optional
-
-class BaseModel:
-    """Base model with common fields"""
-    
-    def __init__(self):
-        self.created_at = datetime.now()
-        self.updated_at = datetime.now()
-    
-    def to_dict(self):
-        """Convert model to dictionary"""
-        return {
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
-        }
-
-class ExampleModel(BaseModel):
-    """Example model for demonstration"""
-    
-    def __init__(self, name: str, description: Optional[str] = None):
-        super().__init__()
-        self.name = name
-        self.description = description or ""
-        self.is_active = True
-    
-    def to_dict(self):
-        """Convert to dictionary"""
-        base_dict = super().to_dict()
-        base_dict.update({
-            'name': self.name,
-            'description': self.description,
-            'is_active': self.is_active
-        })
-        return base_dict
-'''
-                }
-            },
-            "test_code": {
-                "success": True,
-                "test_files": {
-                    "test_main.py": '''"""
-Test cases for Flask application
-"""
-
-import unittest
-import json
-from main import app
-
-class FlaskAppTestCase(unittest.TestCase):
-    """Test cases for Flask application"""
-    
-    def setUp(self):
-        """Set up test client"""
-        self.app = app.test_client()
-        self.app.testing = True
-    
-    def test_home_page(self):
-        """Test home page loads correctly"""
-        response = self.app.get('/')
-        self.assertEqual(response.status_code, 200)
-    
-    def test_health_check(self):
-        """Test health check endpoint"""
-        response = self.app.get('/api/health')
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.data)
-        self.assertIn('status', data)
-        self.assertEqual(data['status'], 'healthy')
-    
-    def test_data_endpoint_get(self):
-        """Test data endpoint GET method"""
-        response = self.app.get('/api/data')
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.data)
-        self.assertIn('message', data)
-        self.assertEqual(data['method'], 'GET')
-    
-    def test_data_endpoint_post(self):
-        """Test data endpoint POST method"""
-        test_data = {'test': 'value'}
-        response = self.app.post('/api/data', 
-                               data=json.dumps(test_data),
-                               content_type='application/json')
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.data)
-        self.assertIn('message', data)
-        self.assertEqual(data['method'], 'POST')
-        self.assertEqual(data['data'], test_data)
-
-if __name__ == '__main__':
-    unittest.main()
-''',
-                    "test_utils.py": '''"""
-Test cases for utility functions
-"""
-
-import unittest
-from utils import validate_input, format_response, create_error_response
-
-class UtilsTestCase(unittest.TestCase):
-    """Test cases for utility functions"""
-    
-    def test_validate_input_valid(self):
-        """Test input validation with valid data"""
-        data = {"key": "value"}
-        self.assertTrue(validate_input(data))
-    
-    def test_validate_input_invalid(self):
-        """Test input validation with invalid data"""
-        data = "not a dict"
-        self.assertFalse(validate_input(data))
-    
-    def test_format_response(self):
-        """Test response formatting"""
-        data = {"test": "data"}
-        response = format_response(data)
-        
-        self.assertIn("success", response)
-        self.assertIn("data", response)
-        self.assertIn("timestamp", response)
-        self.assertTrue(response["success"])
-        self.assertEqual(response["data"], data)
-    
-    def test_create_error_response(self):
-        """Test error response creation"""
-        error_msg = "Test error"
-        response = create_error_response(error_msg, 400)
-        
-        self.assertIn("success", response)
-        self.assertIn("error", response)
-        self.assertIn("status_code", response)
-        self.assertIn("timestamp", response)
-        self.assertFalse(response["success"])
-        self.assertEqual(response["error"], error_msg)
-        self.assertEqual(response["status_code"], 400)
-
-if __name__ == '__main__':
-    unittest.main()
-''',
-                    "test_models.py": '''"""
-Test cases for database models
-"""
-
-import unittest
-from models import ExampleModel
-
-class ExampleModelTestCase(unittest.TestCase):
-    """Test cases for ExampleModel"""
-    
-    def test_model_creation(self):
-        """Test model creation"""
-        model = ExampleModel("Test Model", "Test Description")
-        self.assertEqual(model.name, "Test Model")
-        self.assertEqual(model.description, "Test Description")
-        self.assertTrue(model.is_active)
-    
-    def test_model_to_dict(self):
-        """Test model to dictionary conversion"""
-        model = ExampleModel("Test Model")
-        model_dict = model.to_dict()
-        
-        self.assertIn('name', model_dict)
-        self.assertIn('description', model_dict)
-        self.assertIn('is_active', model_dict)
-        self.assertIn('created_at', model_dict)
-        self.assertIn('updated_at', model_dict)
-        
-        self.assertEqual(model_dict['name'], "Test Model")
-        self.assertTrue(model_dict['is_active'])
-
-if __name__ == '__main__':
-    unittest.main()
-'''
-                }
-            },
-            "additional_files": {
-                "success": True,
-                "additional_files": {
-                    "requirements.txt": '''# Flask Project Dependencies
-
-# Core Flask
-Flask==2.3.3
-Werkzeug==2.3.7
-
-# Development
-pytest==7.4.3
-pytest-flask==1.3.0
-black==23.9.1
-flake8==6.1.0
-
-# Production
-gunicorn==21.2.0
-
-# Environment
-python-dotenv==1.0.0
-
-# Optional: Database
-# SQLAlchemy==2.0.21
-# Flask-SQLAlchemy==3.0.5
-
-# Optional: Authentication
-# Flask-Login==0.6.3
-# Flask-JWT-Extended==4.5.3
-''',
-                    "README.md": f'''# Flask Project
-
-{requirement}
-
-## Setup
-
-1. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-2. Set environment variables:
-```bash
-export FLASK_APP=main.py
-export FLASK_ENV=development
-```
-
-3. Start development server:
-```bash
-python main.py
-```
-
-## Testing
-
-Run tests with:
-```bash
-pytest
-```
-
-## API Endpoints
-
-- `GET /` - Home page
-- `GET /api/health` - Health check
-- `GET /api/data` - Get data
-- `POST /api/data` - Post data
-
-## Deployment
-
-Use the provided Dockerfile and docker-compose.yml for deployment.
-''',
-                    ".env.example": '''# Flask Environment Variables
-
-# Flask Settings
-SECRET_KEY=your-secret-key-here
-DEBUG=True
-FLASK_ENV=development
-
-# Server
-PORT=5000
-HOST=0.0.0.0
-
-# Database (optional)
-DATABASE_URL=sqlite:///app.db
-
-# Logging
-LOG_LEVEL=INFO
-''',
-                    ".gitignore": '''# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Flask
-instance/
-.webassets-cache
-*.db
-
-# Environment
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-''',
-                    "Dockerfile": '''# Flask Dockerfile
-
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \\
-    gcc \\
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy project files
-COPY . .
-
-# Expose port
-EXPOSE 5000
-
-# Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
-''',
-                    "docker-compose.yml": '''# Flask Docker Compose
-
-version: '3.8'
-
-services:
-  web:
-    build: .
-    ports:
-      - "5000:5000"
-    environment:
-      - DEBUG=False
-      - SECRET_KEY=your-production-secret
-    volumes:
-      - .:/app
-    restart: unless-stopped
-
-  # Optional: Add database service
-  # db:
-  #   image: postgres:13
-  #   environment:
-  #     - POSTGRES_DB=flask_db
-  #     - POSTGRES_USER=postgres
-  #     - POSTGRES_PASSWORD=password
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-
-# volumes:
-#   postgres_data:
-''',
-                    "Makefile": '''# Flask Makefile
-
-.PHONY: help install test run clean
-
-help:
-	@echo "Available commands:"
-	@echo "  install  - Install dependencies"
-	@echo "  test     - Run tests"
-	@echo "  run      - Start development server"
-	@echo "  clean    - Clean up files"
-
-install:
-	pip install -r requirements.txt
-
-test:
-	pytest
-
-run:
-	python main.py
-
-clean:
-	find . -type f -name "*.pyc" -delete
-	find . -type d -name "__pycache__" -delete
-''',
-                    "scripts/deploy.sh": '''#!/bin/bash
-
-# Flask Deployment Script
-
-echo "Starting deployment..."
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run tests
-pytest
-
-# Start the application
-gunicorn --bind 0.0.0.0:5000 main:app
-''',
-                    "docs/API.md": '''# Flask API Documentation
-
-## Endpoints
-
-### Home Page
-- **GET** `/`
-- Returns the home page
-
-### Health Check
-- **GET** `/api/health`
-- Returns application health status
-
-### Data Endpoint
-- **GET** `/api/data`
-- Returns example data
-- **POST** `/api/data`
-- Accepts JSON data and returns confirmation
-
-## Authentication
-
-Currently, no authentication is required for these endpoints.
-
-## Response Format
-
-All responses are in JSON format:
-
-```json
-{
-    "success": true,
-    "data": {},
-    "timestamp": "2024-01-01T00:00:00Z"
-}
-```
-
-## Error Responses
-
-```json
-{
-    "success": false,
-    "error": "Error message",
-    "status_code": 400,
-    "timestamp": "2024-01-01T00:00:00Z"
-}
-```
-'''
-                }
-            }
-        }
-    elif "React" in tech_stack_name or "Node.js" in tech_stack_name:
-        return {
-            "main_code": {
-                "success": True,
-                "files": {
-                    "server.js": f'''/*
-{requirement}
-
-Node.js/Express Server
-*/
-
-const express = require('express');
-const cors = require('cors');
-const mongoose = require('mongoose');
-const config = require('./config');
-const logger = require('./utils/logger');
-
-const app = express();
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({{ extended: true }}));
-
-// Database connection
-mongoose.connect(config.database.url, {{
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}})
-.then(() => logger.info('Connected to MongoDB'))
-.catch(err => logger.error('MongoDB connection error:', err));
-
-// Routes
-app.use('/api', require('./routes'));
-
-// Health check
-app.get('/health', (req, res) => {{
-    res.json({{
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime()
-    }});
-}});
-
-// Error handling middleware
-app.use((err, req, res, next) => {{
-    logger.error(err.stack);
-    res.status(500).json({{ error: 'Something went wrong!' }});
-}});
-
-const PORT = config.port || 3000;
-app.listen(PORT, () => {{
-    logger.info(`Server running on port ${{PORT}}`);
-}});
-
-module.exports = app;
-''',
-                    "config/index.js": '''/*
-Configuration for the application
-*/
-
-const env = process.env.NODE_ENV || 'development';
-
-const config = {
-    development: {
-        port: 3000,
-        database: {
-            url: 'mongodb://localhost:27017/dev_db'
-        },
-        cors: {
-            origin: 'http://localhost:3000'
-        },
-        jwt: {
-            secret: 'dev-secret-key',
-            expiresIn: '24h'
-        }
-    },
-    production: {
-        port: process.env.PORT || 3000,
-        database: {
-            url: process.env.MONGODB_URI
-        },
-        cors: {
-            origin: process.env.ALLOWED_ORIGINS?.split(',') || []
-        },
-        jwt: {
-            secret: process.env.JWT_SECRET,
-            expiresIn: '24h'
-        }
-    }
-};
-
-module.exports = config[env];
-''',
-                    "utils/logger.js": '''/*
-Logging utility
-*/
-
-const winston = require('winston');
-
-const logger = winston.createLogger({
-    level: 'info',
-    format: winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.errors({ stack: true }),
-        winston.format.json()
-    ),
-    defaultMeta: { service: 'api-service' },
-    transports: [
-        new winston.transports.File({ filename: 'error.log', level: 'error' }),
-        new winston.transports.File({ filename: 'combined.log' })
-    ]
-});
-
-if (process.env.NODE_ENV !== 'production') {
-    logger.add(new winston.transports.Console({
-        format: winston.format.simple()
-    }));
-}
-
-module.exports = logger;
-''',
-                    "utils/validator.js": '''/*
-Input validation utilities
-*/
-
-const Joi = require('joi');
-
-const validateInput = (data, schema) => {
-    const { error, value } = schema.validate(data);
-    if (error) {
-        throw new Error(error.details[0].message);
-    }
-    return value;
-};
-
-const formatResponse = (data, success = true) => {
-    return {
-        success,
-        data,
-        timestamp: new Date().toISOString()
-    };
-};
-
-module.exports = {
-    validateInput,
-    formatResponse
-};
-''',
-                    "models/User.js": '''/*
-User model
-*/
-
-const mongoose = require('mongoose');
-
-const userSchema = new mongoose.Schema({
-    username: {
-        type: String,
-        required: true,
-        unique: true,
-        trim: true
-    },
-    email: {
-        type: String,
-        required: true,
-        unique: true,
-        lowercase: true
-    },
-    password: {
-        type: String,
-        required: true
-    },
-    isActive: {
-        type: Boolean,
-        default: true
-    }
-}, {
-    timestamps: true
-});
-
-module.exports = mongoose.model('User', userSchema);
-''',
-                    "routes/index.js": '''/*
-Main routes
-*/
-
-const express = require('express');
-const router = express.Router();
-
-const userRoutes = require('./users');
-const authRoutes = require('./auth');
-
-router.use('/users', userRoutes);
-router.use('/auth', authRoutes);
-
-module.exports = router;
-''',
-                    "routes/users.js": '''/*
-User routes
-*/
-
-const express = require('express');
-const router = express.Router();
-const User = require('../models/User');
-const { validateInput } = require('../utils/validator');
-
-// Get all users
-router.get('/', async (req, res) => {
-    try {
-        const users = await User.find({ isActive: true });
-        res.json({ success: true, data: users });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// Get user by ID
-router.get('/:id', async (req, res) => {
-    try {
-        const user = await User.findById(req.params.id);
-        if (!user) {
-            return res.status(404).json({ success: false, error: 'User not found' });
-        }
-        res.json({ success: true, data: user });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-module.exports = router;
-''',
-                    "routes/auth.js": '''/*
-Authentication routes
-*/
-
-const express = require('express');
-const router = express.Router();
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const config = require('../config');
-
-// Register
-router.post('/register', async (req, res) => {
-    try {
-        const { username, email, password } = req.body;
-        
-        // Check if user exists
-        const existingUser = await User.findOne({ $or: [{ email }, { username }] });
-        if (existingUser) {
-            return res.status(400).json({ success: false, error: 'User already exists' });
-        }
-        
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-        
-        // Create user
-        const user = new User({
-            username,
-            email,
-            password: hashedPassword
-        });
-        
-        await user.save();
-        
-        res.status(201).json({ success: true, message: 'User created successfully' });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// Login
-router.post('/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        
-        // Find user
-        const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(401).json({ success: false, error: 'Invalid credentials' });
-        }
-        
-        // Check password
-        const isValidPassword = await bcrypt.compare(password, user.password);
-        if (!isValidPassword) {
-            return res.status(401).json({ success: false, error: 'Invalid credentials' });
-        }
-        
-        // Generate token
-        const token = jwt.sign(
-            { userId: user._id, email: user.email },
-            config.jwt.secret,
-            { expiresIn: config.jwt.expiresIn }
-        );
-        
-        res.json({ success: true, token });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-module.exports = router;
-'''
-                }
-            },
-            "test_code": {
-                "success": True,
-                "test_files": {
-                    "test/server.test.js": '''/*
-Server tests
-*/
-
-const request = require('supertest');
-const app = require('../server');
-const mongoose = require('mongoose');
-
-describe('Server', () => {
-    beforeAll(async () => {
-        // Connect to test database
-        await mongoose.connect('mongodb://localhost:27017/test_db');
-    });
-
-    afterAll(async () => {
-        await mongoose.connection.close();
-    });
-
-    describe('GET /health', () => {
-        it('should return health status', async () => {
-            const response = await request(app).get('/health');
-            expect(response.statusCode).toBe(200);
-            expect(response.body.status).toBe('healthy');
-            expect(response.body.timestamp).toBeDefined();
-        });
-    });
-});
-''',
-                    "test/routes/users.test.js": '''/*
-User routes tests
-*/
-
-const request = require('supertest');
-const app = require('../server');
-const User = require('../models/User');
-
-describe('User Routes', () => {
-    beforeEach(async () => {
-        await User.deleteMany({});
-    });
-
-    describe('GET /api/users', () => {
-        it('should return empty array when no users', async () => {
-            const response = await request(app).get('/api/users');
-            expect(response.statusCode).toBe(200);
-            expect(response.body.success).toBe(true);
-            expect(response.body.data).toEqual([]);
-        });
-    });
-});
-''',
-                    "test/routes/auth.test.js": '''/*
-Auth routes tests
-*/
-
-const request = require('supertest');
-const app = require('../server');
-const User = require('../models/User');
-
-describe('Auth Routes', () => {
-    beforeEach(async () => {
-        await User.deleteMany({});
-    });
-
-    describe('POST /api/auth/register', () => {
-        it('should create new user', async () => {
-            const userData = {
-                username: 'testuser',
-                email: 'test@example.com',
-                password: 'password123'
-            };
-
-            const response = await request(app)
-                .post('/api/auth/register')
-                .send(userData);
-
-            expect(response.statusCode).toBe(201);
-            expect(response.body.success).toBe(true);
-        });
-    });
-});
-''',
-                    "test/utils/validator.test.js": '''/*
-Validator tests
-*/
-
-const { validateInput, formatResponse } = require('../../utils/validator');
-const Joi = require('joi');
-
-describe('Validator', () => {
-    describe('validateInput', () => {
-        it('should validate correct data', () => {
-            const schema = Joi.object({
-                name: Joi.string().required(),
-                email: Joi.string().email().required()
-            });
-
-            const data = {
-                name: 'Test User',
-                email: 'test@example.com'
-            };
-
-            const result = validateInput(data, schema);
-            expect(result).toEqual(data);
-        });
-
-        it('should throw error for invalid data', () => {
-            const schema = Joi.object({
-                name: Joi.string().required(),
-                email: Joi.string().email().required()
-            });
-
-            const data = {
-                name: 'Test User',
-                email: 'invalid-email'
-            };
-
-            expect(() => validateInput(data, schema)).toThrow();
-        });
-    });
-
-    describe('formatResponse', () => {
-        it('should format response correctly', () => {
-            const data = { test: 'data' };
-            const response = formatResponse(data);
-
-            expect(response.success).toBe(true);
-            expect(response.data).toEqual(data);
-            expect(response.timestamp).toBeDefined();
-        });
-    });
-});
-'''
-                }
-            },
-            "additional_files": {
-                "success": True,
-                "additional_files": {
-                    "package.json": '''{
-  "name": "nodejs-api",
-  "version": "1.0.0",
-  "description": "Node.js API with Express and MongoDB",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "test": "jest",
-    "test:watch": "jest --watch"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "mongoose": "^7.5.0",
-    "cors": "^2.8.5",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
-    "joi": "^17.9.2",
-    "winston": "^3.10.0",
-    "dotenv": "^16.3.1"
-  },
-  "devDependencies": {
-    "jest": "^29.6.2",
-    "supertest": "^6.3.3",
-    "nodemon": "^3.0.1"
-  },
-  "keywords": ["nodejs", "express", "mongodb", "api"],
-  "author": "Your Name",
-  "license": "MIT"
-}''',
-                    "README.md": f'''# Node.js API Project
-
-{requirement}
-
-## Setup
-
-1. Install dependencies:
-```bash
-npm install
-```
-
-2. Set up environment variables:
-```bash
-cp .env.example .env
-```
-
-3. Start development server:
-```bash
-npm run dev
-```
-
-## Testing
-
-Run tests with:
-```bash
-npm test
-```
-
-## API Endpoints
-
-- `GET /health` - Health check
-- `GET /api/users` - Get all users
-- `GET /api/users/:id` - Get user by ID
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-
-## Deployment
-
-Use the provided Dockerfile and docker-compose.yml for deployment.
-''',
-                    ".env.example": '''# Node.js Environment Variables
-
-# Server
-PORT=3000
-NODE_ENV=development
-
-# Database
-MONGODB_URI=mongodb://localhost:27017/dev_db
-
-# JWT
-JWT_SECRET=your-secret-key-here
-
-# CORS
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
-''',
-                    ".gitignore": '''# Dependencies
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Environment
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Logs
-logs
-*.log
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-''',
-                    "Dockerfile": '''# Node.js Dockerfile
-
-FROM node:18-alpine
-
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy source code
-COPY . .
-
-# Expose port
-EXPOSE 3000
-
-# Start the application
-CMD ["npm", "start"]
-''',
-                    "docker-compose.yml": '''# Node.js Docker Compose
-
-version: '3.8'
-
-services:
-  api:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - MONGODB_URI=mongodb://mongo:27017/prod_db
-      - JWT_SECRET=your-production-secret
-    depends_on:
-      - mongo
-    volumes:
-      - .:/app
-      - /app/node_modules
-
-  mongo:
-    image: mongo:6
-    environment:
-      - MONGO_INITDB_DATABASE=prod_db
-    volumes:
-      - mongo_data:/data/db
-
-volumes:
-  mongo_data:
-''',
-                    "jest.config.js": '''module.exports = {
-  testEnvironment: 'node',
-  testMatch: ['**/test/**/*.test.js'],
-  collectCoverageFrom: [
-    '**/*.js',
-    '!**/node_modules/**',
-    '!**/test/**'
-  ],
-  coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov']
-};
-''',
-                    "Makefile": '''# Node.js Makefile
-
-.PHONY: help install test run clean
-
-help:
-	@echo "Available commands:"
-	@echo "  install  - Install dependencies"
-	@echo "  test     - Run tests"
-	@echo "  run      - Start development server"
-	@echo "  clean    - Clean up files"
-
-install:
-	npm install
-
-test:
-	npm test
-
-run:
-	npm run dev
-
-clean:
-	rm -rf node_modules
-	rm -rf coverage
-	find . -name "*.log" -delete
-''',
-                    "scripts/deploy.sh": '''#!/bin/bash
-
-# Node.js Deployment Script
-
-echo "Starting deployment..."
-
-# Install dependencies
-npm ci --only=production
-
-# Run tests
-npm test
-
-# Start the application
-npm start
-''',
-                    "docs/API.md": '''# Node.js API Documentation
-
-## Authentication
-
-Most endpoints require authentication via JWT token in the Authorization header:
-```
-Authorization: Bearer <token>
-```
-
-## Endpoints
-
-### Health Check
-- **GET** `/health`
-- Returns application health status
-
-### Users
-- **GET** `/api/users`
-- Get all active users
-- **GET** `/api/users/:id`
-- Get user by ID
-
-### Authentication
-- **POST** `/api/auth/register`
-- Register new user
-- **POST** `/api/auth/login`
-- Login user
-
-## Request/Response Format
-
-### Register Request
-```json
-{
-    "username": "testuser",
-    "email": "test@example.com",
-    "password": "password123"
-}
-```
-
-### Login Request
-```json
-{
-    "email": "test@example.com",
-    "password": "password123"
-}
-```
-
-### Response Format
-```json
-{
-    "success": true,
-    "data": {},
-    "timestamp": "2024-01-01T00:00:00Z"
-}
-```
-'''
-                }
-            }
-        }
-    else:
-        # Default Python template
-        return {
-            "main_code": {
-                "success": True,
-                "files": {
-                    "main.py": f'''"""
-{requirement}
-
-Python Application Template
-"""
-
-import logging
-from typing import Dict, Any
-from utils import setup_logging, validate_input, format_response
-
-# Setup logging
-setup_logging()
-logger = logging.getLogger(__name__)
-
-class Application:
-    """Main application class"""
-    
-    def __init__(self):
-        self.name = "AI-Generated Application"
-        logger.info("Initializing " + self.name)
-    
-    def process_request(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process incoming request"""
-        if not validate_input(data):
-            return format_response({{"error": "Invalid input"}})
-        
-        try:
-            # Process the data here
-            result = {{"processed": True, "data": data}}
-            logger.info("Request processed successfully")
-            return format_response(result)
-        except Exception as e:
-            logger.error("Error processing request: " + str(e))
-            return format_response({{"error": str(e)}})
-    
-    def health_check(self) -> Dict[str, Any]:
-        """Health check endpoint"""
-        return format_response({{"status": "healthy"}})
-
-def main():
-    """Main function"""
-    app = Application()
-    
-    # Example usage
-    sample_data = {{"key": "value"}}
-    result = app.process_request(sample_data)
-    print(result)
-    
-    health = app.health_check()
-    print(health)
-
-if __name__ == "__main__":
-    main()
-''',
-                    "config.py": '''"""
-Configuration settings
-"""
-
-import os
-from typing import Dict, Any
-
-class Config:
-    """Base configuration class"""
-    
-    DEBUG = True
-    SECRET_KEY = os.getenv('SECRET_KEY', 'your-secret-key-here')
-    DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///app.db')
-    
-    @staticmethod
-    def get_config() -> Dict[str, Any]:
-        """Get configuration dictionary"""
-        return {
-            'debug': Config.DEBUG,
-            'secret_key': Config.SECRET_KEY,
-            'database_url': Config.DATABASE_URL
-        }
-
-class DevelopmentConfig(Config):
-    """Development configuration"""
-    DEBUG = True
-
-class ProductionConfig(Config):
-    """Production configuration"""
-    DEBUG = False
-''',
-                    "utils.py": '''"""
-Utility functions
-"""
-
-import logging
-from typing import Any, Dict
-
-def setup_logging():
-    """Setup logging configuration"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-
-def validate_input(data: Dict[str, Any]) -> bool:
-    """Validate input data"""
-    if not isinstance(data, dict):
-        return False
-    return True
-
-def format_response(data: Any) -> Dict[str, Any]:
-    """Format response data"""
-    return {
-        "success": True,
-        "data": data,
-        "timestamp": "2024-01-01T00:00:00Z"
-    }
-'''
-                }
-            },
-            "test_code": {
-                "success": True,
-                "test_files": {
-                    "test_main.py": '''"""
-Test cases for main application
-"""
-
-import unittest
-from main import Application
-
-class ApplicationTestCase(unittest.TestCase):
-    """Test cases for Application class"""
-    
-    def setUp(self):
-        """Set up test data"""
-        self.app = Application()
-    
-    def test_health_check(self):
-        """Test health check method"""
-        result = self.app.health_check()
-        self.assertIn('success', result)
-        self.assertTrue(result['success'])
-        self.assertIn('data', result['data'])
-    
-    def test_process_request_valid(self):
-        """Test process_request with valid data"""
-        data = {"key": "value"}
-        result = self.app.process_request(data)
-        self.assertIn('success', result)
-        self.assertTrue(result['success'])
-        self.assertIn('data', result['data'])
-    
-    def test_process_request_invalid(self):
-        """Test process_request with invalid data"""
-        data = "not a dict"
-        result = self.app.process_request(data)
-        self.assertIn('success', result)
-        self.assertTrue(result['success'])
-        self.assertIn('error', result['data'])
-
-if __name__ == '__main__':
-    unittest.main()
-''',
-                    "test_utils.py": '''"""
-Test cases for utility functions
-"""
-
-import unittest
-from utils import validate_input, format_response
-
-class UtilsTestCase(unittest.TestCase):
-    """Test cases for utility functions"""
-    
-    def test_validate_input_valid(self):
-        """Test input validation with valid data"""
-        data = {"key": "value"}
-        self.assertTrue(validate_input(data))
-    
-    def test_validate_input_invalid(self):
-        """Test input validation with invalid data"""
-        data = "not a dict"
-        self.assertFalse(validate_input(data))
-    
-    def test_format_response(self):
-        """Test response formatting"""
-        data = {"test": "data"}
-        response = format_response(data)
-        
-        self.assertIn("success", response)
-        self.assertIn("data", response)
-        self.assertIn("timestamp", response)
-        self.assertTrue(response["success"])
-        self.assertEqual(response["data"], data)
-
-if __name__ == '__main__':
-    unittest.main()
-'''
-                }
-            }
-        }
 
 def generate_project_structure(selected_tech_stack, requirement_text, ai_engine, model="gpt-4o-mini"):
     """Generate project file structure based on selected tech stack"""
@@ -2543,7 +561,6 @@ def generate_project_structure(selected_tech_stack, requirement_text, ai_engine,
         
         # Try to parse JSON from response
         try:
-            import json
             import re
             
             # Clean the response - remove any markdown formatting
@@ -2561,10 +578,10 @@ def generate_project_structure(selected_tech_stack, requirement_text, ai_engine,
             end_idx = cleaned_response.rfind('}') + 1
             
             if start_idx != -1 and end_idx != 0:
-                json_str = cleaned_response[start_idx:end_idx]
+                object_str = cleaned_response[start_idx:end_idx]
                 # Remove any extra data after the last closing brace
-                json_str = json_str[:json_str.rfind('}')+1]
-                result = json.loads(json_str)
+                object_str = object_str[:object_str.rfind('}')+1]
+                result = json.loads(object_str)
                 
                 # Validate the structure
                 if isinstance(result, dict) and result.get("success") is not None:
@@ -2591,7 +608,6 @@ def generate_project_structure(selected_tech_stack, requirement_text, ai_engine,
 
 def generate_code_for_structure(project_structure, requirement_text, ai_engine, model="gpt-4o-mini"):
     """Generate complete project files based on project structure"""
-    import json
     import os
     from pathlib import Path
     import re
@@ -2689,17 +705,25 @@ def generate_code_for_structure(project_structure, requirement_text, ai_engine, 
         handle_and_display_error(e, "generate_code_for_structure")
         return {"success": False, "error": str(e)}
 
+# Helper to render per-tab header (minimal, professional)
+def render_tab_hero(title, badges, subtitle):
+    try:
+        chips = ''.join([f"<span class='chip'>{b}</span>" for b in badges])
+        st.markdown(f"<div class='header-bar'><h1>{title}</h1><p>{chips}{subtitle}</p></div>", unsafe_allow_html=True)
+    except Exception:
+        pass
+
 # Main application
 def main():
-    st.markdown('<h1 class="main-header">AI-Powered Development Assistant</h1>', unsafe_allow_html=True)
+    # Per-tab hero is rendered inside each tab
     
     # Sidebar for configuration
     with st.sidebar:
         st.markdown("""
-            <div style='padding: 18px 16px 12px 16px; background: #f7f7fa; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); margin-bottom: 18px;'>
-                <h3 style='margin-bottom: 8px; color: #222;'>Configuration</h3>
-                <p style='font-size: 0.95em; color: #555; margin-bottom: 18px;'>
-                    Select your preferred AI model and adjust generation settings for optimal results.
+            <div style='padding: 18px 16px 12px 16px; background: linear-gradient(135deg, #1e3a8a, #1d4ed8); border-radius: 14px; box-shadow: 0 6px 20px rgba(13, 71, 161, 0.25); margin-bottom: 18px; color: #fff;'>
+                <h3 style='margin-bottom: 8px;'>Configuration</h3>
+                <p style='font-size: 0.95em; opacity: 0.9; margin-bottom: 16px;'>
+                    Pick a model and tune responses. Defaults work well for most cases.
                 </p>
         """, unsafe_allow_html=True)
 
@@ -2710,24 +734,28 @@ def main():
             index=0,
             help="Choose the AI model for code and test generation."
         )
+        # Subtle status line in blue theme (replaces red default accents on some themes)
+        st.markdown("<div style='height:6px;border-radius:6px;background:linear-gradient(90deg,#1e88e5,#42a5f5);margin:6px 0 10px 0;'></div>", unsafe_allow_html=True)
 
         # Temperature setting
+        st.markdown("<div style='color:#0f172a;font-weight:600;margin-top:6px;margin-bottom:2px;'>Creativity</div>", unsafe_allow_html=True)
         temperature = st.slider(
-            "Creativity Level",
+            "",
             0.0, 1.0, 0.7, 0.1,
-            help="Controls randomness. Lower values = more deterministic, higher = more creative."
+            help="Lower = deterministic, Higher = more creative."
         )
 
         # Max tokens
+        st.markdown("<div style='color:#0f172a;font-weight:600;margin-top:6px;margin-bottom:2px;'>Response Length</div>", unsafe_allow_html=True)
         max_tokens = st.slider(
-            "Max Response Length",
+            "",
             1000, 4000, 2000, 500,
-            help="Maximum number of tokens (words/pieces) in the AI's response."
+            help="Maximum tokens in the AI's response."
         )
 
         st.markdown("""
-            <div style='font-size: 0.92em; color: #888; margin-top: 10px;'>
-                <b>Tip:</b> For most use cases, the default settings work well. Adjust only if you need more control.
+            <div style='font-size: 0.92em; color: rgba(255,255,255,0.9); margin-top: 10px;'>
+                <b>Tip:</b> Defaults are sensible. Raise tokens for long outputs.
             </div>
             </div>
         """, unsafe_allow_html=True)
@@ -2763,22 +791,30 @@ def main():
             st.info("No files generated yet")
     
     # Main tabs
-    tab1,tab5, tab_test_gen = st.tabs([
+    tab1, tab_test_gen, tab_dev, tab_onboard, tab5 = st.tabs([
         "Code Generation",
-        "File Manager",
-        "Test Generator"
+        "Test Generator",
+        "Developer",
+        "On Boarding",
+        "File Manager"
     ])
     
 
 
     # Tab 1: Code Generation
     with tab1:
-        st.header("Automated Code Generation and Error Handling")
+        render_tab_hero(
+            "Code Generation",
+            ["Gemini", "GPT-4o", "Claude", "Docker"],
+            "From idea to runnable code — with self-healing."
+        )
+        st.header("Code Generation")
+        st.caption("Turn requirements into runnable code with self-healing and tests.")
         
         # Upload section for code generation
-        st.subheader("Upload Requirements Document")
+        st.subheader("Requirements")
         uploaded_file = st.file_uploader(
-            "Choose a document",
+            "Upload PDF/DOCX/TXT/MD/CSV or a project ZIP",
             type=['pdf', 'docx', 'doc', 'txt', 'md', 'csv', 'zip'],
             help="Upload PDF, Word, text, markdown, CSV, or a zipped project folder"
         )
@@ -2799,7 +835,7 @@ def main():
                     with st.expander("View extracted text"):
                         st.text_area("Document Content", st.session_state.uploaded_document, height=200)
             # User action choice
-            st.subheader("What would you like to do?")
+            st.subheader("Action")
             user_action = st.radio(
                 "Choose an action:",
                 [
@@ -2928,7 +964,7 @@ def main():
                                     
                                     if project_structure_result['success']:
                                         st.success("Project structure generated successfully!")
-                                        st.subheader("Generated Project Structure")
+                                        st.subheader("Project Structure")
                                         st.json(project_structure_result)
                                         # Save project structure in session state for code generation
                                         st.session_state['approved_project_structure'] = project_structure_result
@@ -2980,12 +1016,8 @@ def main():
                                         model
                                     )
                                     if not code_result or not code_result.get('success'):
-                                        st.warning("AI generation failed, using fallback templates...")
-                                        if selected_stack_obj:
-                                            code_result = _get_fallback_code(selected_stack_obj['name'], combined_requirement)
-                                        else:
-                                            st.error("No tech stack object available for fallback code generation.")
-                                            return
+                                        st.error("AI generation failed. Please try again with different parameters or check your API configuration.")
+                                        return
                                     if code_result and code_result.get('success'):
                                         project_files = dict(code_result.get('files', {}))
                                         
@@ -3037,10 +1069,6 @@ def main():
                                             
                                             return extracted_files
                                         
-                                        # Debug: Print the structure of code_result
-                                        print("DEBUG: Code result structure:")
-                                        print_nested_structure(code_result)
-                                        
                                         # Extract all files from the entire code_result structure
                                         all_files = extract_all_files_recursively(code_result)
                                         
@@ -3054,19 +1082,18 @@ def main():
                                             if clean_path not in project_files:
                                                 project_files[clean_path] = content
                                         
-                                        print(f"DEBUG: Extracted {len(all_files)} files from nested structure")
-                                        print(f"DEBUG: Final project_files keys: {list(project_files.keys())}")
+
                                         
                                         # Ensure we have requirements.txt (check common locations)
                                         requirements_found = False
                                         for req_file in ['requirements.txt', 'requirements.txt.txt', 'requirements.txt.txt.txt']:
                                             if req_file in project_files:
                                                 requirements_found = True
-                                                print(f"DEBUG: Found requirements file: {req_file}")
+
                                                 break
                                         
                                         if not requirements_found:
-                                            print("WARNING: No requirements.txt found in any nested structure!")
+                                            st.warning("No requirements.txt found in generated files")
                                         main_file_name = detect_main_file(project_files, use_llm=True)
                                         if not main_file_name:
                                             py_files = [f for f in project_files if f.endswith('.py')]
@@ -3090,13 +1117,13 @@ def main():
                                             st.success("Project healed! All code and tests pass.")
                                         else:
                                             st.warning("Healing attempts exhausted. Showing best effort.")
-                                        st.subheader("Final Project Files (after healing)")
+                                        st.subheader("Final Files")
                                         for fname, content in healing_result['final_files'].items():
                                             with st.expander(fname, expanded=False):
                                                 st.code(content, language='python' if fname.endswith('.py') else 'text')
-                                        st.subheader("Final Output")
+                                        st.subheader("Output")
                                         st.code(healing_result['output'])
-                                        st.subheader("Final Error (if any)")
+                                        st.subheader("Errors")
                                         st.code(healing_result['error'])
                                         saved_files = []
                                         for filename, content in healing_result['final_files'].items():
@@ -3152,13 +1179,13 @@ def main():
                                 st.success("Project healed! All code and tests pass.")
                             else:
                                 st.warning("Healing attempts exhausted. Showing best effort.")
-                            st.subheader("Final Project Files (after healing)")
+                            st.subheader("Final Files")
                             for fname, content in healing_result['final_files'].items():
                                 with st.expander(fname, expanded=False):
                                     st.code(content, language='python' if fname.endswith('.py') else 'text')
-                            st.subheader("Final Output")
+                            st.subheader("Output")
                             st.code(healing_result['output'])
-                            st.subheader("Final Error (if any)")
+                            st.subheader("Errors")
                             st.code(healing_result['error'])
                             saved_files = []
                             for filename, content in healing_result['final_files'].items():
@@ -3196,26 +1223,32 @@ def main():
         
     # Tab 5: File Manager
     with tab5:
-        st.header("File Management")
+        render_tab_hero(
+            "File Manager",
+            ["ZIP Export", "Preview", "History"],
+            "Browse, preview, and export artifacts."
+        )
+        st.header("Files")
+        st.caption("Preview, export, and manage outputs.")
         
         if st.session_state.generated_files:
             st.subheader("Generated Files")
             
-            # File statistics
+            # File statistics as KPI cards
             file_types = {}
             for file_info in st.session_state.generated_files:
                 file_type = file_info['type']
                 file_types[file_type] = file_types.get(file_type, 0) + 1
             
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Code Files", file_types.get('code', 0))
-            with col2:
-                st.metric("Test Files", file_types.get('test', 0))
-            with col3:
-                st.metric("Assessments", file_types.get('assessment', 0))
-            with col4:
-                st.metric("Total Files", len(st.session_state.generated_files))
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.markdown(f"<div class='kpi-card'><div class='label'>Code Files</div><div class='value'>{file_types.get('code', 0)}</div></div>", unsafe_allow_html=True)
+            with c2:
+                st.markdown(f"<div class='kpi-card'><div class='label'>Test Files</div><div class='value'>{file_types.get('test', 0)}</div></div>", unsafe_allow_html=True)
+            with c3:
+                st.markdown(f"<div class='kpi-card'><div class='label'>Assessments</div><div class='value'>{file_types.get('assessment', 0)}</div></div>", unsafe_allow_html=True)
+            with c4:
+                st.markdown(f"<div class='kpi-card'><div class='label'>Total Files</div><div class='value'>{len(st.session_state.generated_files)}</div></div>", unsafe_allow_html=True)
             
             # File list
             for i, file_info in enumerate(st.session_state.generated_files):
@@ -3276,16 +1309,50 @@ def main():
     
     # Tab 6: Test Generator
     with tab_test_gen:
+        render_tab_hero(
+            "Test Generator",
+            ["pytest", "Coverage", "Agents"],
+            "Design robust tests — faster."
+        )
+        
+        # Test Generation Mode Selection
+        test_mode = st.radio(
+            "Test Generation Mode",
+            ["Code-Based Tests", "Requirements-Based Tests"],
+            help="Choose whether to generate tests from existing code or from requirements specifications"
+        )
+        
+        # Model selection for test generation
+        test_model = st.selectbox(
+            "AI Model for Test Generation",
+            ["Gemini 2.5 Pro", "gpt-4o-mini", "gpt-4o", "Claude-Opus-4", "Grok-4"],
+            index=0,
+            help="Choose the AI model for test generation."
+        )
+        
+        # Check API keys
+        if test_model == "Claude-Opus-4" and not os.environ.get("CLAUDE_API_KEY"):
+            st.warning("⚠️ Claude API key not found. Please set CLAUDE_API_KEY in your environment.")
+        elif test_model == "Grok-4" and not os.environ.get("GROK4_API_KEY"):
+            st.warning("⚠️ Grok-4 API key not found. Please set GROK4_API_KEY in your environment.")
         
         # Test-specific upload area
-        
-        # File uploader that accepts all types for test generation
-        uploaded_files = st.file_uploader(
-            "Upload files to generate tests from (Python files, project ZIP, or requirements documents)",
-            type=['py', 'zip', 'pdf', 'docx', 'doc', 'txt', 'md', 'csv'],
-            accept_multiple_files=True,
-            help="Upload Python files (.py), project ZIP, or requirements documents (PDF, DOCX, TXT, MD, CSV) to generate comprehensive test cases"
-        )
+        if test_mode == "Code-Based Tests":
+            # File uploader for code-based testing
+            uploaded_files = st.file_uploader(
+                "Upload Python files or project ZIP to generate unit tests",
+                type=['py', 'zip'],
+                accept_multiple_files=True,
+                help="Upload Python files (.py) or project ZIP to generate comprehensive unit tests"
+            )
+        else:
+            # File uploader for requirements-based testing
+            uploaded_files = st.file_uploader(
+                "Upload requirements documents to generate test cases",
+                type=['pdf', 'docx', 'doc', 'txt', 'md', 'csv'],
+                accept_multiple_files=True,
+                help="Upload requirements documents (PDF, DOCX, TXT, MD, CSV) to generate comprehensive test cases"
+            )
         
 
         
@@ -3302,51 +1369,559 @@ def main():
             if not uploaded_files:
                 st.warning("Please upload files to generate tests.")
             else:
-                with st.spinner("Generating comprehensive test cases..."):
+                if test_mode == "Requirements-Based Tests":
+                    # Requirements-based test generation
                     try:
                         all_content = []
                         file_names = []
                         
-                        # Process uploaded files
-                        if uploaded_files:
-                            for file in uploaded_files:
-                                file_ext = file.name.lower().split('.')[-1]
-                                
-                                if file_ext == 'py':
-                                    # Python file
-                                    content = file.read().decode('utf-8')
-                                    all_content.append(f"# File: {file.name}\n{content}")
-                                    file_names.append(file.name)
-                                    
-                                elif file_ext == 'zip':
-                                    # Project ZIP
-                                    project_dir = extract_project_zip(file)
-                                    if project_dir:
-                                        python_files = list_python_files(project_dir)
-                                        for py_file in python_files:
-                                            try:
-                                                with open(py_file, 'r', encoding='utf-8') as f:
-                                                    content = f.read()
-                                                all_content.append(f"# File: {os.path.basename(py_file)}\n{content}")
-                                                file_names.append(os.path.basename(py_file))
-                                            except Exception as e:
-                                                st.warning(f"Could not read {py_file}: {e}")
-                                    
-                                else:
-                                    # Requirements document
-                                    doc_content = process_uploaded_document(file)
-                                    if doc_content:
-                                        all_content.append(f"# Requirements from: {file.name}\n{doc_content}")
-                                        file_names.append(f"requirements_{file.name}")
-                        
-
+                        # Process uploaded requirements documents
+                        for file in uploaded_files:
+                            doc_content = process_uploaded_document(file)
+                            if doc_content:
+                                all_content.append(f"# Requirements from: {file.name}\n{doc_content}")
+                                file_names.append(f"requirements_{file.name}")
                         
                         if all_content:
                             # Combine all content
                             combined_content = "\n\n".join(all_content)
                             
-                            # Build the prompt
-                            one_shot_example = '''
+                            # Debug info - removed to reduce verbosity
+                            
+                            # Build the requirements-based test prompt
+                            requirements_prompt = f"""
+Generate comprehensive test cases from the following requirements/specifications document.
+
+CRITICAL REQUIREMENTS:
+- Generate AT LEAST 100 comprehensive test cases for thorough QA testing
+- HEAVILY FOCUS on FUNCTIONAL TESTING (60-70% of test cases) as these are most suitable for automated agentic testing
+- Include non-functional, integration, security, performance, and usability tests for complete coverage
+- Each test case should have: Test ID, Category, Subcategory, Description, Expected Result, Priority
+- Focus on real-world scenarios and user interactions that can be automated
+- Consider hardware, software, connectivity, performance, security, and usability aspects
+- Prioritize test cases that can be executed by automated testing tools/agents
+
+TEST CASE STRUCTURE:
+- Test ID: TC_XXXX format (TC_0001 to TC_0100+)
+- Category: Functional (60-70%), Non-Functional, Integration, Security, Performance, Usability, etc.
+- Subcategory: Specific area (WiFi, Battery, Camera, App Integration, Bluetooth, GPS, Sensors, etc.)
+- Description: Clear, actionable test scenario that can be automated
+- Expected Result: What should happen when test passes
+- Priority: High, Medium, Low
+- Device Type: Mobile, Tablet, Wearable, Smart TV, etc.
+
+FUNCTIONAL TESTING FOCUS AREAS (60-70% of test cases):
+- Connectivity: WiFi, Cellular, Bluetooth, GPS, NFC
+- Hardware: Camera, Microphone, Speakers, Sensors, Battery
+- App Integration: Background apps, Multi-tasking, App switching
+- User Interface: Touch response, Gestures, Navigation
+- System Functions: Calls, SMS, Email, Notifications
+- Media: Audio, Video, Image capture and playback
+- Storage: Internal storage, SD card, Cloud sync
+- Security: Biometric authentication, App permissions
+- Performance: App launch, Response times, Memory usage
+
+Requirements Document:
+{combined_content}
+
+IMPORTANT: You MUST respond with ONLY valid JSON. No additional text, no explanations, no markdown formatting.
+CRITICAL: All property names MUST be enclosed in double quotes. All string values MUST be enclosed in double quotes.
+Example: "test_id": "TC_0001" (NOT test_id: TC_0001)
+
+Generate comprehensive test cases in this EXACT JSON format:
+{{
+    "test_cases": [
+        {{
+            "test_id": "TC_0001",
+            "category": "Functional",
+            "subcategory": "WiFi",
+            "device_type": "Mobile Device",
+            "description": "Test WiFi maintains stable connection during phone calls",
+            "expected_result": "WiFi connection remains stable, no disconnection during calls",
+            "priority": "High"
+        }},
+        {{
+            "test_id": "TC_0002", 
+            "category": "Functional",
+            "subcategory": "Audio Integration",
+            "device_type": "Mobile Device",
+            "description": "Test YouTube video playback when incoming call arrives",
+            "expected_result": "Video pauses, call audio takes priority, no audio overlap",
+            "priority": "Medium"
+        }},
+        {{
+            "test_id": "TC_0003",
+            "category": "Functional",
+            "subcategory": "Camera",
+            "device_type": "Mobile Device", 
+            "description": "Test camera app opens and captures photo within 3 seconds",
+            "expected_result": "Camera app launches quickly and photo is saved successfully",
+            "priority": "High"
+        }}
+    ]
+}}
+
+Generate AT LEAST 100 test cases with 60-70% being functional tests suitable for automated agentic testing.
+
+Respond with ONLY the JSON object:
+"""
+                            
+                            # Add custom prompt if provided
+                            if custom_prompt.strip():
+                                full_prompt = requirements_prompt + f"\n\nAdditional Requirements:\n{custom_prompt}"
+                            else:
+                                full_prompt = requirements_prompt
+                            
+                            # Generate test cases
+                            try:
+                                with st.spinner("Generating comprehensive test cases from requirements..."):
+                                    if test_model == "Grok-4":
+                                        ai_response = generate_with_grok(full_prompt)
+                                        test_result = {"success": True, "test_code": ai_response}
+                                    elif test_model == "Claude-Opus-4":
+                                        ai_response = generate_with_claude(full_prompt, model_name="claude-opus-4-20250514")
+                                        test_result = {"success": True, "test_code": ai_response}
+                                    else:
+                                        # Use AI engine for other models
+                                        ai_response = components['ai_engine'].generate_response(full_prompt, model=test_model)
+                                        test_result = {"success": True, "test_code": ai_response}
+                                
+                                if test_result['success']:
+                                    # Try to parse JSON response
+                                    try:
+                                        # Extract JSON from response (handle markdown formatting)
+                                        response_text = test_result['test_code']
+                                        
+                                        # Try to find JSON in the response
+                                        extracted_text = None
+                                        
+                                        # Look for JSON code blocks
+                                        if '```json' in response_text:
+                                            block_start = response_text.find('```json') + 7
+                                            block_end = response_text.find('```', block_start)
+                                            extracted_text = response_text[block_start:block_end].strip()
+                                        elif '```' in response_text:
+                                            block_start = response_text.find('```') + 3
+                                            block_end = response_text.find('```', block_start)
+                                            extracted_text = response_text[block_start:block_end].strip()
+                                        else:
+                                            # Try to find JSON object in the text
+                                            object_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+                                            if object_match:
+                                                extracted_text = object_match.group(0)
+                                            else:
+                                                extracted_text = response_text
+                                        
+                                        # Clean up common JSON formatting issues
+                                        if extracted_text:
+                                            # Remove any leading/trailing text that's not JSON
+                                            extracted_text = re.sub(r'^[^{]*', '', extracted_text)
+                                            extracted_text = re.sub(r'[^}]*$', '', extracted_text)
+                                            
+                                            # More aggressive JSON cleaning
+                                            # Fix common AI formatting issues
+                                            
+                                            # First, fix unquoted property names (this is the main issue)
+                                            extracted_text = re.sub(r'([{,])\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', extracted_text)
+                                            
+                                            # Fix common AI formatting issues
+                                            extracted_text = re.sub(r'(\w+):', r'"\1":', extracted_text)  # Add quotes to keys
+                                            extracted_text = re.sub(r':\s*([^",\{\}\[\]\s][^,\{\}\[\]]*[^",\{\}\[\]\s])\s*([,\}\]])', r': "\1"\2', extracted_text)  # Add quotes to string values
+                                            extracted_text = re.sub(r',\s*}', '}', extracted_text)  # Remove trailing commas
+                                            extracted_text = re.sub(r',\s*]', ']', extracted_text)  # Remove trailing commas in arrays
+                                            
+                                            # Additional fixes for common AI issues
+                                            extracted_text = re.sub(r'(["\w])\s*,\s*(["\w])', r'\1,\2', extracted_text)  # Fix spacing around commas
+                                            extracted_text = re.sub(r'}\s*,\s*{', '},{', extracted_text)  # Fix object separators
+                                            extracted_text = re.sub(r']\s*,\s*{', '},{', extracted_text)  # Fix array-object separators
+                                            extracted_text = re.sub(r'}\s*,\s*\[', '},[', extracted_text)  # Fix object-array separators
+                                            
+                                            # Fix missing quotes around string values
+                                            extracted_text = re.sub(r':\s*([^",\{\}\[\]\s][^,\{\}\[\]]*[^",\{\}\[\]\s])\s*([,\}\]])', r': "\1"\2', extracted_text)
+                                            
+                                            # Fix unclosed quotes in string values
+                                            extracted_text = re.sub(r':\s*"([^"]*?)(?=\s*[,}\]])', r': "\1"', extracted_text)
+                                            
+                                            # Fix escaped quotes and other common issues
+                                            extracted_text = extracted_text.replace('\\"', '"')  # Fix escaped quotes
+                                            extracted_text = extracted_text.replace('""', '"')   # Fix double quotes
+                                            
+                                            # Try to fix unclosed quotes
+                                            quote_count = extracted_text.count('"')
+                                            if quote_count % 2 != 0:
+                                                # Add missing quote at the end
+                                                extracted_text += '"'
+                                            
+                                            # Additional cleaning for common AI mistakes
+                                            extracted_text = re.sub(r'([^"])\s*,\s*([^"])', r'\1,\2', extracted_text)  # Fix spacing around commas
+                                            extracted_text = re.sub(r'}\s*,\s*{', '},{', extracted_text)  # Fix object separators
+                                            extracted_text = re.sub(r']\s*,\s*{', '},{', extracted_text)  # Fix array-object separators
+                                            extracted_text = re.sub(r'}\s*,\s*\[', '},[', extracted_text)  # Fix object-array separators
+                                            
+                                            # Remove any remaining problematic characters
+                                            extracted_text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', extracted_text)  # Remove control characters
+                                            
+                                            # Final cleanup - ensure proper JSON structure
+                                            extracted_text = re.sub(r',\s*([}\]])', r'\1', extracted_text)  # Remove trailing commas before closing brackets
+                                        
+                                        # Try to parse the cleaned JSON
+                                        try:
+                                            test_data = json.loads(extracted_text)
+                                        except json.JSONDecodeError as inner_e:
+                                            # Show debug info for JSON parsing issues
+                                            st.warning(f"JSON parsing failed: {inner_e}")
+                                            st.info("Attempting to extract test cases array...")
+                                            
+                                            # Show the cleaned JSON for debugging (first 1000 chars)
+                                            st.info("Debug: First 1000 characters of cleaned JSON:")
+                                            st.code(extracted_text[:1000], language='json')
+                                            # If still failing, try to extract just the test_cases array
+                                            # Look for test_cases array specifically
+                                            test_cases_match = re.search(r'"test_cases"\s*:\s*\[(.*?)\]', extracted_text, re.DOTALL)
+                                            if test_cases_match:
+                                                test_cases_text = test_cases_match.group(1)
+                                                # Try to parse individual test case objects
+                                                test_case_matches = re.findall(r'\{[^{}]*\}', test_cases_text)
+                                                test_cases = []
+                                                
+                                                for i, test_case_text in enumerate(test_case_matches):
+                                                    try:
+                                                        # Clean up the test case text
+                                                        cleaned_case = re.sub(r'(\w+):', r'"\1":', test_case_text)
+                                                        cleaned_case = re.sub(r':\s*([^",\{\}\[\]\s][^,\{\}\[\]]*[^",\{\}\[\]\s])\s*([,\}\]])', r': "\1"\2', cleaned_case)
+                                                        cleaned_case = re.sub(r',\s*}', '}', cleaned_case)
+                                                        
+                                                        case_data = json.loads(cleaned_case)
+                                                        case_data['test_id'] = case_data.get('test_id', f'TC_{i+1:04d}')
+                                                        test_cases.append(case_data)
+                                                    except (json.JSONDecodeError, ValueError, KeyError):
+                                                        continue
+                                                
+                                                if test_cases:
+                                                    test_data = {'test_cases': test_cases}
+                                                else:
+                                                    raise inner_e
+                                            else:
+                                                # Try one more approach - look for individual test case objects
+                                                test_case_objects = re.findall(r'\{[^{}]*"test_id"[^{}]*\}', extracted_text, re.DOTALL)
+                                                if test_case_objects:
+                                                    test_cases = []
+                                                    for i, obj in enumerate(test_case_objects):
+                                                        try:
+                                                            # Clean up the object
+                                                            cleaned_obj = re.sub(r'([{,])\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', obj)
+                                                            cleaned_obj = re.sub(r':\s*([^",\{\}\[\]\s][^,\{\}\[\]]*[^",\{\}\[\]\s])\s*([,\}\]])', r': "\1"\2', cleaned_obj)
+                                                            cleaned_obj = re.sub(r',\s*}', '}', cleaned_obj)
+                                                            
+                                                            case_data = json.loads(cleaned_obj)
+                                                            test_cases.append(case_data)
+                                                        except (json.JSONDecodeError, ValueError, KeyError):
+                                                            continue
+                                                    
+                                                    if test_cases:
+                                                        test_data = {'test_cases': test_cases}
+                                                    else:
+                                                        raise inner_e
+                                                else:
+                                                    raise inner_e
+                                        
+                                        # Display test cases in a table
+                                        st.subheader("Generated Test Cases")
+                                        
+                                        # Create a DataFrame for better display
+                                        import pandas as pd
+                                        test_cases = test_data.get('test_cases', [])
+                                        if test_cases:
+                                            df = pd.DataFrame(test_cases)
+                                            st.dataframe(df, use_container_width=True)
+                                            
+                                            # Export to Excel
+                                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                            excel_filename = f"test_cases_{timestamp}.xlsx"
+                                            
+                                            # Create Excel file with formatting
+                                            with pd.ExcelWriter(excel_filename, engine='openpyxl') as writer:
+                                                df.to_excel(writer, sheet_name='Test Cases', index=False)
+                                                
+                                                # Auto-adjust column widths
+                                                worksheet = writer.sheets['Test Cases']
+                                                for column in worksheet.columns:
+                                                    max_length = 0
+                                                    column_letter = column[0].column_letter
+                                                    for cell in column:
+                                                        try:
+                                                            if len(str(cell.value)) > max_length:
+                                                                max_length = len(str(cell.value))
+                                                        except (TypeError, AttributeError):
+                                                            pass
+                                                    adjusted_width = min(max_length + 2, 50)
+                                                    worksheet.column_dimensions[column_letter].width = adjusted_width
+                                            
+                                            # Download buttons
+                                            col1, col2 = st.columns(2)
+                                            with col1:
+                                                with open(excel_filename, 'rb') as f:
+                                                    st.download_button(
+                                                        "Download Excel File",
+                                                        f.read(),
+                                                        file_name=excel_filename,
+                                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                                    )
+                                            
+                                            with col2:
+                                                # Also provide JSON download
+                                                test_cases_filename = f"test_cases_{timestamp}.json"
+                                                st.download_button(
+                                                    "Download JSON File",
+                                                    json.dumps(test_data, indent=2),
+                                                    file_name=test_cases_filename,
+                                                    mime="application/json"
+                                                )
+                                            
+                                            # Save to session state
+                                            st.session_state.generated_files.append({
+                                                'name': excel_filename,
+                                                'path': os.path.abspath(excel_filename),
+                                                'type': 'test_cases',
+                                                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                            })
+                                            
+                                            st.success(f"✅ Generated {len(test_cases)} test cases successfully!")
+                                            
+                                        else:
+                                            st.warning("No test cases found in the response")
+                                            
+                                    except json.JSONDecodeError as e:
+                                        st.error(f"Failed to parse JSON response: {e}")
+                                        st.info("Attempting to generate test cases from raw response...")
+                                        
+                                        # Enhanced fallback parsing logic
+                                        try:
+                                            # Try to extract test cases from the raw response
+                                            response_text = test_result['test_code']
+                                            test_cases = []
+                                            
+                                            # Look for patterns like "TC_XXXX" or test case structures
+                                            lines = response_text.split('\n')
+                                            current_case = {}
+                                            
+                                            for line in lines:
+                                                line = line.strip()
+                                                if not line:
+                                                    continue
+                                                
+                                                # Try to parse CSV-like format
+                                                if line.count(',') >= 5 and '"' in line:
+                                                    # Handle malformed CSV with extra quotes and commas
+                                                    import re
+                                                    
+                                                    # Remove leading numbers and tabs
+                                                    line = re.sub(r'^[0-9\s\t]*', '', line)
+                                                    
+                                                    # Extract quoted fields using regex
+                                                    quoted_pattern = r'"([^"]*(?:\\"[^"]*)*)"'
+                                                    matches = re.findall(quoted_pattern, line)
+                                                    
+                                                    # Clean each quoted match
+                                                    valid_fields = []
+                                                    for match in matches:
+                                                        # Handle escaped quotes
+                                                        cleaned = match.replace('\\"', '"')
+                                                        # Remove any remaining artifacts
+                                                        cleaned = re.sub(r'^[0-9\s\t]*', '', cleaned)
+                                                        cleaned = re.sub(r'["\']+$', '', cleaned)
+                                                        cleaned = cleaned.strip()
+                                                        
+                                                        if cleaned and len(cleaned) > 1:
+                                                            valid_fields.append(cleaned)
+                                                    
+                                                    # If we don't have enough fields, try splitting by comma
+                                                    if len(valid_fields) < 6:
+                                                        parts = line.split(',')
+                                                        valid_fields = []
+                                                        
+                                                        for part in parts:
+                                                            # Remove quotes and extra whitespace
+                                                            cleaned = part.strip().strip('"').strip("'")
+                                                            # Remove artifacts
+                                                            cleaned = re.sub(r'^[0-9\s\t]*["\']*', '', cleaned)
+                                                            cleaned = re.sub(r'["\']*[0-9\s\t]*$', '', cleaned)
+                                                            cleaned = re.sub(r'\s+', ' ', cleaned)
+                                                            cleaned = cleaned.replace('\\"', '"').replace('""', '"')
+                                                            # Remove commas and quotes
+                                                            cleaned = re.sub(r'^[,\s]*', '', cleaned)
+                                                            cleaned = re.sub(r'[,\s]*$', '', cleaned)
+                                                            cleaned = re.sub(r'["\']+', '', cleaned)
+                                                            cleaned = cleaned.strip()
+                                                            
+                                                            if cleaned and cleaned != ',' and len(cleaned) > 1:
+                                                                valid_fields.append(cleaned)
+                                                    
+                                                    if len(valid_fields) >= 6:
+                                                        test_case = {
+                                                            'test_id': valid_fields[0] if len(valid_fields) > 0 else f'TC_{len(test_cases)+1:04d}',
+                                                            'category': valid_fields[1] if len(valid_fields) > 1 else 'Functional',
+                                                            'subcategory': valid_fields[2] if len(valid_fields) > 2 else 'General',
+                                                            'device_type': valid_fields[3] if len(valid_fields) > 3 else 'Mobile Device',
+                                                            'description': valid_fields[4] if len(valid_fields) > 4 else 'Test case',
+                                                            'expected_result': valid_fields[5] if len(valid_fields) > 5 else 'Expected result',
+                                                            'priority': valid_fields[6] if len(valid_fields) > 6 else 'Medium'
+                                                        }
+                                                        test_cases.append(test_case)
+                                                        continue
+                                                
+                                                # Try to parse key-value format
+                                                if ':' in line and ('test_id' in line.lower() or 'tc_' in line.lower()):
+                                                    if current_case:
+                                                        test_cases.append(current_case)
+                                                    current_case = {}
+                                                    
+                                                    # Extract test ID
+                                                    if 'test_id' in line.lower() or 'tc_' in line.lower():
+                                                        parts = line.split(':', 1)
+                                                        if len(parts) == 2:
+                                                            test_id = parts[1].strip().strip('"').strip("'")
+                                                            current_case['test_id'] = test_id
+                                                
+                                                elif ':' in line and current_case:
+                                                    parts = line.split(':', 1)
+                                                    if len(parts) == 2:
+                                                        key = parts[0].strip().lower()
+                                                        value = parts[1].strip().strip('"').strip("'")
+                                                        
+                                                        if 'category' in key:
+                                                            current_case['category'] = value
+                                                        elif 'subcategory' in key:
+                                                            current_case['subcategory'] = value
+                                                        elif 'description' in key:
+                                                            current_case['description'] = value
+                                                        elif 'expected' in key and 'result' in key:
+                                                            current_case['expected_result'] = value
+                                                        elif 'priority' in key:
+                                                            current_case['priority'] = value
+                                                        elif 'device' in key and 'type' in key:
+                                                            current_case['device_type'] = value
+                                            
+                                            # Add the last case if exists
+                                            if current_case:
+                                                test_cases.append(current_case)
+                                            
+                                            if test_cases:
+                                                # Create DataFrame and export
+                                                import pandas as pd
+                                                df = pd.DataFrame(test_cases)
+                                                st.subheader("Generated Test Cases (Parsed from Raw Response)")
+                                                st.dataframe(df, use_container_width=True)
+                                                
+                                                # Export to Excel
+                                                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                                excel_filename = f"test_cases_{timestamp}.xlsx"
+                                                
+                                                with pd.ExcelWriter(excel_filename, engine='openpyxl') as writer:
+                                                    df.to_excel(writer, sheet_name='Test Cases', index=False)
+                                                    worksheet = writer.sheets['Test Cases']
+                                                    for column in worksheet.columns:
+                                                        max_length = 0
+                                                        column_letter = column[0].column_letter
+                                                        for cell in column:
+                                                            try:
+                                                                if len(str(cell.value)) > max_length:
+                                                                    max_length = len(str(cell.value))
+                                                            except:
+                                                                pass
+                                                        adjusted_width = min(max_length + 2, 50)
+                                                        worksheet.column_dimensions[column_letter].width = adjusted_width
+                                                
+                                                # Download button
+                                                with open(excel_filename, 'rb') as f:
+                                                    st.download_button(
+                                                        "Download Excel File",
+                                                        f.read(),
+                                                        file_name=excel_filename,
+                                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                                    )
+                                                
+                                                st.success(f"✅ Successfully parsed {len(test_cases)} test cases from raw response!")
+                                                
+                                                # Save to session state
+                                                st.session_state.generated_files.append({
+                                                    'name': excel_filename,
+                                                    'path': os.path.abspath(excel_filename),
+                                                    'type': 'test_cases',
+                                                    'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                                })
+                                            else:
+                                                st.error("Could not extract test cases from the raw response")
+                                                st.subheader("Raw AI Response")
+                                                st.code(test_result['test_code'], language='text')
+                                                
+                                        except Exception as parse_error:
+                                            st.error(f"Failed to extract test cases: {parse_error}")
+                                            st.subheader("Raw AI Response")
+                                            st.code(test_result['test_code'], language='text')
+                                        
+                                else:
+                                    st.error(f"❌ Test generation failed: {test_result.get('error', 'Unknown error')}")
+                                    
+                            except Exception as ai_error:
+                                st.error(f"AI model error: {ai_error}")
+                                
+                        else:
+                            st.warning("No content found to generate tests for.")
+                            
+                    except Exception as e:
+                        handle_and_display_error(e, "requirements_test_generation")
+                else:
+                    # Original code-based test generation
+                    with st.spinner("Generating code-based test cases..."):
+                        try:
+                            all_content = []
+                            file_names = []
+                            
+                            # Process uploaded files
+                            if uploaded_files:
+                                for file in uploaded_files:
+                                    file_ext = file.name.lower().split('.')[-1]
+                                    
+                                    if file_ext == 'py':
+                                        # Python file
+                                        content = file.read().decode('utf-8')
+                                        all_content.append(f"# File: {file.name}\n{content}")
+                                        file_names.append(file.name)
+                                        
+                                    elif file_ext == 'zip':
+                                        # Project ZIP
+                                        project_dir = extract_project_zip(file)
+                                        if project_dir:
+                                            python_files = list_python_files(project_dir)
+                                            for py_file in python_files:
+                                                try:
+                                                    with open(py_file, 'r', encoding='utf-8') as f:
+                                                        content = f.read()
+                                                    all_content.append(f"# File: {os.path.basename(py_file)}\n{content}")
+                                                    file_names.append(os.path.basename(py_file))
+                                                except UnicodeDecodeError as e:
+                                                    st.warning(f"Could not read {py_file} due to encoding issues (likely a binary or metadata file): {e}")
+                                                except Exception as e:
+                                                    st.warning(f"Could not read {py_file}: {e}")
+                                        
+                                    else:
+                                        # Requirements document
+                                        doc_content = process_uploaded_document(file)
+                                        if doc_content:
+                                            all_content.append(f"# Requirements from: {file.name}\n{doc_content}")
+                                            file_names.append(f"requirements_{file.name}")
+                            
+                            if all_content:
+                                # Combine all content
+                                combined_content = "\n\n".join(all_content)
+                                
+                                # Debug info
+                                st.info(f"Processing {len(file_names)} files with {test_model} model")
+                                st.info(f"Combined content length: {len(combined_content)} characters")
+                            
+                                # Build the prompt
+                                one_shot_example = '''
 # Example function
 def add(a, b):
     """Return the sum of a and b."""
@@ -3360,128 +1935,327 @@ def test_add_invalid():
     with pytest.raises(TypeError):
         add(2, None)
 '''
-                            
-                            # Create the full prompt
-                            base_prompt = f"""
+                                
+                                # Create the full prompt
+                                base_prompt = f"""
 {one_shot_example}
 
-The output must be a complete, ready-to-run test file with NO placeholders, NO commented-out code, and NO TODOs.
+Generate comprehensive Python unit tests using pytest for the following code and requirements.
 
-Generate Python unit tests using pytest for the following code and requirements.
+CRITICAL REQUIREMENTS:
+- Generate ONLY actual, working test code - NO placeholders, NO TODOs, NO commented-out code
+- Write real test functions with actual assertions and test data
+- For each function/class found in the code, create at least 2-3 meaningful test cases
+- Include both positive tests (valid inputs) and negative tests (edge cases, invalid inputs)
+- Use realistic test data that matches the expected input/output types
+- Use pytest-style assertions (assert statements)
+- Import the actual functions/classes being tested
+- Make tests that would actually run and validate the code functionality
 
-STRICT INSTRUCTIONS:
-- Do NOT use TODOs, do NOT comment out any code, and do NOT use 'pass' as a placeholder.
-- If you cannot generate a real test for a function/class, SKIP it entirely.
-- For each function/class, write at least one valid test case with realistic data and one invalid/edge case (e.g., wrong type, empty input, boundary values).
-- Use only pytest-style assertions (no unittest boilerplate, no print statements).
-- Assume all classes and functions are available for import and implemented as described.
-- Avoid unnecessary setup/teardown unless required.
-- Use clear, descriptive test function names.
-- If relevant, include integration tests for interactions between functions/classes, and for performance or edge scenarios.
-- Add concise comments only where the test logic is non-obvious.
-
-Code and Requirements to test:
+Code to test:
 {combined_content}
+
+Generate the complete test file now:
 """
-                            
-                            # Add custom prompt if provided
-                            if custom_prompt.strip():
-                                full_prompt = base_prompt + f"\n\nAdditional Requirements:\n{custom_prompt}"
-                            else:
-                                full_prompt = base_prompt
-                            
-                            # Generate tests
-                            if model == "Grok-4":
-                                ai_response = generate_with_grok(full_prompt)
-                                test_result = {"success": True, "test_code": ai_response}
-                            elif model == "Claude-Opus-4":
-                                test_result = generate_with_claude(full_prompt, model_name="claude-opus-4-20250514")
-                            else:
-                                test_result = components['test_generator'].generate_tests(full_prompt, language='python')
-                            
-                            if test_result['success']:
-                                st.success("✅ Tests generated successfully!")
                                 
-                                # Display results
-                                st.subheader("📋 Generated Test Code")
-                                st.code(test_result['test_code'], language='python')
+                                # Add custom prompt if provided
+                                if custom_prompt.strip():
+                                    full_prompt = base_prompt + f"\n\nAdditional Requirements:\n{custom_prompt}"
+                                else:
+                                    full_prompt = base_prompt
                                 
-                                # File information
-                                st.subheader("📁 Files Processed")
-                                for file_name in file_names:
-                                    st.write(f"• {file_name}")
+                                # Generate tests
+                                try:
+                                    st.info(f"🤖 Generating tests with {test_model}...")
+                                    
+                                    if test_model == "Grok-4":
+                                        ai_response = generate_with_grok(full_prompt)
+                                        test_result = {"success": True, "test_code": ai_response}
+                                    elif test_model == "Claude-Opus-4":
+                                        ai_response = generate_with_claude(full_prompt, model_name="claude-opus-4-20250514")
+                                        test_result = {"success": True, "test_code": ai_response}
+                                    else:
+                                        # Use AI engine for other models
+                                        ai_response = components['ai_engine'].generate_response(full_prompt, model=test_model)
+                                        test_result = {"success": True, "test_code": ai_response}
+                                    
+                                    # Validate the response
+                                    if not test_result.get("test_code") or len(test_result["test_code"].strip()) < 100:
+                                        st.warning("⚠️ AI response seems too short. Falling back to basic test generator.")
+                                        test_result = components['test_generator'].generate_tests(combined_content, language='python')
+                                        
+                                except Exception as ai_error:
+                                    st.error(f"AI model error: {ai_error}")
+                                    st.info("🔄 Falling back to basic test generator...")
+                                    # Fallback to basic test generator
+                                    test_result = components['test_generator'].generate_tests(combined_content, language='python')
                                 
-                                # Save test file
-                                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                                test_filename = f"test_generated_{timestamp}.py"
-                                test_file_path = components['file_manager'].save_test_file(
-                                    test_filename, 
-                                    test_result['test_code']
-                                )
-                                
-                                st.session_state.generated_files.append({
-                                    'name': test_filename,
-                                    'path': test_file_path,
-                                    'type': 'test',
-                                    'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                })
-                                
-                                st.info(f"💾 Test file saved to: {test_file_path}")
-                                
-                                # Download options
-                                col1, col2 = st.columns(2)
-                                with col1:
+                                if test_result['success']:
+                                    test_code = test_result['test_code']
+                                    
+                                    # Check if the generated code looks like a template
+                                    if "TODO" in test_code or "placeholder" in test_code.lower():
+                                        st.warning("⚠️ Generated code appears to be a template. This might indicate an AI model issue.")
+                                    
+                                    st.success("✅ Tests generated successfully!")
+                                    
+                                    # Display results
+                                    st.subheader("📋 Generated Test Code")
+                                    st.code(test_code, language='python')
+                                    
+                                    # File information
+                                    st.subheader("📁 Files Processed")
+                                    for file_name in file_names:
+                                        st.write(f"• {file_name}")
+                                    
+                                    # Download button
+                                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                    filename = f"test_generated_{timestamp}.py"
                                     st.download_button(
-                                        "📥 Download Test File",
-                                        test_result['test_code'],
-                                        file_name=test_filename,
+                                        label="📥 Download Test File",
+                                        data=test_code,
+                                        file_name=filename,
                                         mime="text/plain"
                                     )
-                                with col2:
-                                    # Create ZIP with all files
-                                    if uploaded_files:
-                                        zip_path = components['file_manager'].create_zip_archive(st.session_state.generated_files)
-                                        with open(zip_path, 'rb') as f:
-                                            st.download_button(
-                                                "📦 Download All Files (ZIP)",
-                                                f.read(),
-                                                file_name=f"test_files_{timestamp}.zip",
-                                                mime="application/zip"
-                                            )
+                                    
+                                    # Show custom prompt if used
+                                    if custom_prompt.strip():
+                                        st.subheader("📝 Custom Requirements Used")
+                                        st.info(custom_prompt)
                                 
-                                # Show custom requirements if provided
-                                if custom_prompt.strip():
-                                    st.subheader("💬 Custom Requirements Applied")
-                                    st.info(custom_prompt)
-                                
+                                else:
+                                    st.error(f"❌ Test generation failed: {test_result.get('error', 'Unknown error')}")
                             else:
-                                st.error(f"❌ Test generation failed: {test_result.get('error', 'Unknown error')}")
-                        else:
-                            st.warning("No content found to generate tests for.")
-                            
-                    except Exception as e:
-                        handle_and_display_error(e, "unified_test_generation")
+                                st.warning("No content found to generate tests for.")
+                        except Exception as e:
+                            handle_and_display_error(e, "code_test_generation")
         
-        # Tips and guidance
-        if not uploaded_files:
-            st.info("""
-                         **💡 How to Use:**
-             
-             1. **Upload Files**: Drag and drop Python files (.py), project ZIP, or requirements documents
-             2. **Add Requirements**: Optionally add specific test requirements or preferences
-             3. **Generate**: Click the button to create comprehensive test cases
-            
-            **Supported File Types:**
-            • Python files (.py)
-            • Project ZIP files (.zip)
-            • Requirements documents (PDF, DOCX, TXT, MD, CSV)
-            
-            **Best Practices:**
-            • Include edge cases and error scenarios in your requirements
-            • Specify expected inputs and outputs clearly
-            • Mention any specific testing frameworks or patterns you prefer
-            """)
+        # Tips and guidance - removed to reduce verbosity
     
+    # Tab: Developer (feature development on existing code)
+    with tab_dev:
+        render_tab_hero(
+            "Developer",
+            ["Claude", "Healing", "Docker"],
+            "Ship new features with confidence."
+        )
+        st.header("Developer")
+        st.caption("Implement new features with iterative healing.")
+
+        source_choice = st.radio("Source", ["Upload ZIP/Files", "GitHub URL"], horizontal=True)
+        project_files = {}
+        repo_url = None
+
+        if source_choice == "Upload ZIP/Files":
+            up = st.file_uploader("Upload project ZIP or multiple .py files", type=["zip", "py"], accept_multiple_files=True)
+            if up:
+                for f in up:
+                    if f.name.lower().endswith(".zip"):
+                        proj_dir = extract_project_zip(f)
+                        if proj_dir:
+                            for root, _, files in os.walk(proj_dir):
+                                for name in files:
+                                    path = os.path.join(root, name)
+                                    rel = os.path.relpath(path, proj_dir)
+                                    try:
+                                        with open(path, "r", encoding="utf-8", errors="ignore") as fp:
+                                            project_files[rel] = fp.read()
+                                    except Exception:
+                                        continue
+                    elif f.name.lower().endswith(".py"):
+                        try:
+                            project_files[f.name] = f.read().decode("utf-8", errors="ignore")
+                        except Exception:
+                            pass
+        else:
+            repo_url = st.text_input("GitHub repository URL", placeholder="https://github.com/owner/repo")
+            if repo_url and st.button("Fetch Repo"):
+                try:
+                    import tempfile, subprocess, shutil
+                    tmpdir = tempfile.mkdtemp(prefix="repo_")
+                    subprocess.run(["git", "clone", "--depth", "1", repo_url, tmpdir], check=True, capture_output=True)
+                    for root, _, files in os.walk(tmpdir):
+                        for name in files:
+                            path = os.path.join(root, name)
+                            rel = os.path.relpath(path, tmpdir)
+                            # Only load text-like files to avoid binary
+                            if any(rel.endswith(ext) for ext in [".py", ".txt", ".md", ".toml", ".cfg", ".ini", ".yaml", ".yml", "requirements.txt", "setup.py", "Pipfile", "pyproject.toml"]):
+                                try:
+                                    with open(path, "r", encoding="utf-8", errors="ignore") as fp:
+                                        project_files[rel] = fp.read()
+                                except Exception:
+                                    continue
+                    shutil.rmtree(tmpdir, ignore_errors=True)
+                    st.success("Repository fetched.")
+                except Exception as e:
+                    handle_and_display_error(e, "github_fetch")
+
+        feature_prompt = st.text_area("Describe the new feature to implement", height=140, placeholder="Add a new endpoint /reports that returns aggregated analytics, update auth, add tests, and update requirements if needed.")
+        max_attempts = st.slider("Max healing iterations", 1, 7, 5)
+        run_button = st.button("Implement Feature and Run")
+
+        if run_button:
+            if not project_files:
+                st.warning("Please provide code via upload or GitHub.")
+            elif not feature_prompt.strip():
+                st.warning("Please describe the feature to implement.")
+            else:
+                try:
+                    # Determine main file
+                    main_file = detect_main_file(project_files, use_llm=True) or "main.py"
+
+                    # Ask Claude to implement feature by returning updated files
+                    file_blocks = []
+                    for fname, content in project_files.items():
+                        file_blocks.append(f"<<FILENAME:{fname}>>\n{content}\n<<END>>")
+                    files_str = "\n".join(file_blocks)
+                    prompt = f"""
+You are a senior software engineer. Implement the following feature in the provided project. Modify or add files as needed, including tests and requirements.
+
+FEATURE REQUEST:
+{feature_prompt}
+
+PROJECT FILES:
+{files_str}
+
+Return ONLY updated and new files in this exact format, for each file:
+<<FILENAME:path/filename.ext>>
+<file content>
+<<END>>
+"""
+                    claude_resp = generate_with_claude(prompt, model_name="claude-opus-4-20250514", max_tokens=3500)
+
+                    import re
+                    pattern = re.compile(r"<<FILENAME:(.*?)>>\n(.*?)<<END>>", re.DOTALL)
+                    updates = {m.group(1).strip(): m.group(2) for m in pattern.finditer(claude_resp)}
+                    if updates:
+                        project_files.update(updates)
+
+                    # Run self-healing loop in Docker
+                    result = ai_self_healing_workflow(project_files, code_model="claude-opus-4-20250514", main_file=main_file, max_attempts=max_attempts)
+
+                    if result.get("success"):
+                        st.success("Feature implemented and project runs successfully.")
+                    else:
+                        st.warning("Completed iterations but errors remain. Saving latest files anyway.")
+
+                    # Save final files to File Manager and show
+                    for fname, content in result.get("final_files", {}).items():
+                        saved = components['file_manager'].save_project_file(feature_prompt, fname, content)
+                        st.session_state.generated_files.append({
+                            'name': os.path.basename(saved),
+                            'path': saved,
+                            'type': 'code',
+                            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        })
+
+                    st.subheader("Docker Output")
+                    st.code(result.get("output", ""))
+                    if err := result.get("error"):
+                        st.error(err)
+                except Exception as e:
+                    handle_and_display_error(e, "developer_tab")
+
+    # Tab: On Boarding (generate documentation & diagrams)
+    with tab_onboard:
+        render_tab_hero(
+            "On Boarding",
+            ["Docs", "Diagrams", "Insights"],
+            "Understand any codebase quickly."
+        )
+        st.header("Onboarding")
+        st.caption("Generate clear docs and flow diagrams.")
+
+        source_choice2 = st.radio("Source", ["Upload ZIP/Files", "GitHub URL"], horizontal=True, key="onboard_src")
+        onboard_files = {}
+        repo_url2 = None
+
+        if source_choice2 == "Upload ZIP/Files":
+            up2 = st.file_uploader("Upload project ZIP or multiple files", type=["zip", "py", "md", "txt"], accept_multiple_files=True, key="onboard_upload")
+            if up2:
+                for f in up2:
+                    if f.name.lower().endswith(".zip"):
+                        proj_dir = extract_project_zip(f)
+                        if proj_dir:
+                            for root, _, files in os.walk(proj_dir):
+                                for name in files:
+                                    path = os.path.join(root, name)
+                                    rel = os.path.relpath(path, proj_dir)
+                                    if any(rel.endswith(ext) for ext in [".py", ".md", ".txt", ".toml", ".yaml", ".yml", "requirements.txt", "setup.py", "Pipfile", "pyproject.toml"]):
+                                        try:
+                                            with open(path, "r", encoding="utf-8", errors="ignore") as fp:
+                                                onboard_files[rel] = fp.read()
+                                        except Exception:
+                                            continue
+                    else:
+                        try:
+                            onboard_files[f.name] = f.read().decode("utf-8", errors="ignore")
+                        except Exception:
+                            pass
+        else:
+            repo_url2 = st.text_input("GitHub repository URL", placeholder="https://github.com/owner/repo", key="onboard_repo")
+            if repo_url2 and st.button("Fetch Repo", key="onboard_fetch"):
+                try:
+                    import tempfile, subprocess, shutil
+                    tmpdir = tempfile.mkdtemp(prefix="repo_")
+                    subprocess.run(["git", "clone", "--depth", "1", repo_url2, tmpdir], check=True, capture_output=True)
+                    for root, _, files in os.walk(tmpdir):
+                        for name in files:
+                            path = os.path.join(root, name)
+                            rel = os.path.relpath(path, tmpdir)
+                            if any(rel.endswith(ext) for ext in [".py", ".md", ".txt", ".toml", ".yaml", ".yml", "requirements.txt", "setup.py", "Pipfile", "pyproject.toml"]):
+                                try:
+                                    with open(path, "r", encoding="utf-8", errors="ignore") as fp:
+                                        onboard_files[rel] = fp.read()
+                                except Exception:
+                                    continue
+                    shutil.rmtree(tmpdir, ignore_errors=True)
+                    st.success("Repository fetched.")
+                except Exception as e:
+                    handle_and_display_error(e, "onboard_github_fetch")
+
+        doc_prompt_extra = st.text_area("Focus areas (optional)", placeholder="Explain the architecture, modules, data flow, key APIs, setup steps, and how to extend.")
+        gen_doc_btn = st.button("Generate Documentation")
+
+        if gen_doc_btn:
+            if not onboard_files:
+                st.warning("Please provide a project via upload or GitHub.")
+            else:
+                try:
+                    # Build combined context
+                    file_blocks = []
+                    for fname, content in list(onboard_files.items())[:50]:  # limit to 50 files for prompt size
+                        snippet = content if len(content) < 8000 else content[:8000]
+                        file_blocks.append(f"<<FILENAME:{fname}>>\n{snippet}\n<<END>>")
+                    files_str = "\n\n".join(file_blocks)
+
+                    doc_prompt = f"""
+You are a senior developer advocate. Create comprehensive onboarding documentation for the following project with clear sections: Overview, Architecture, Module/Directory Guide, Setup & Run, Development Workflow, Key APIs/Endpoints, Data Flow, Testing, Deployment, and How to Extend. Include concise flow diagrams in Mermaid when useful.
+
+PROJECT FILES (partial):
+{files_str}
+
+EXTRA FOCUS (optional): {doc_prompt_extra}
+
+Return ONLY Markdown. Include Mermaid diagrams using ```mermaid blocks when appropriate.
+"""
+                    doc_markdown = generate_with_claude(doc_prompt, model_name="claude-opus-4-20250514", max_tokens=3500)
+
+                    # Save to assessments/docs
+                    filename = f"ONBOARDING_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+                    saved = components['file_manager'].save_project_file("onboarding", filename, doc_markdown)
+                    st.session_state.generated_files.append({
+                        'name': os.path.basename(saved),
+                        'path': saved,
+                        'type': 'assessment',
+                        'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
+
+                    st.success("Documentation generated and saved to File Manager.")
+                    st.subheader("Preview")
+                    st.markdown(doc_markdown)
+                except Exception as e:
+                    handle_and_display_error(e, "onboarding_tab")
     # Footer
     # st.markdown("---")
     # st.markdown(
@@ -3573,9 +2347,9 @@ def ai_self_healing_workflow(project_files, code_model, main_file="main.py", tes
     attempt = 0
     history = []
     files = dict(project_files)  # working copy
-    print(f"DEBUG: Self-healing workflow - Files available: {list(files.keys())}")
+
     while attempt < max_attempts:
-        print(f"DEBUG: Attempt {attempt + 1} - Running with files: {list(files.keys())}")
+
         result = sandbox.run_code(files=files, main_file=main_file)
         history.append({"files": dict(files), "result": result})
         if result["exit_code"] == 0:
@@ -3618,25 +2392,18 @@ ERROR:
 **Focus on fixing the requirements.txt dependency order first, then any other issues.**
 """
         claude_response = generate_with_claude(fix_prompt, model_name="claude-opus-4-20250514")
-        print(f"DEBUG: Claude response length: {len(claude_response)}")
-        print(f"DEBUG: Claude response preview: {claude_response[:500]}...")
         
         import re
         file_pattern = re.compile(r"<<FILENAME:(.*?)>>\n(.*?)<<END>>", re.DOTALL)
         new_files = {}
         matches = list(file_pattern.finditer(claude_response))
-        print(f"DEBUG: Found {len(matches)} file matches in Claude response")
         
         for match in matches:
             fname, content = match.group(1).strip(), match.group(2).strip()
             new_files[fname] = content
-            print(f"DEBUG: Updated file: {fname} (length: {len(content)})")
         
         if new_files:
             files.update(new_files)
-            print(f"DEBUG: Updated {len(new_files)} files with Claude fixes")
-        else:
-            print("DEBUG: No files were updated by Claude - this might indicate an issue with the response format")
         attempt += 1
     return {"final_files": files, "history": history, "success": result["exit_code"] == 0, "output": result["stdout"], "error": result["stderr"]}
 

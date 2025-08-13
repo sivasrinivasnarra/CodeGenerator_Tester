@@ -1,246 +1,133 @@
 # AI-Powered Development Assistant
 
-An intelligent system that transforms natural language requirements into fully functional, tested code projects through a sophisticated 4-stage AI workflow with self-healing capabilities.
+A comprehensive AI-powered development assistant built with Streamlit that helps with code generation, testing, and project management.
 
-## 🚀 Key Features
+## Features
 
-### **4-Stage AI Workflow**
-1. **Input Processing**: Multi-format document analysis (PDF, DOCX, TXT, MD, CSV, ZIP)
-2. **Tech Stack Recommendation**: AI-driven technology stack suggestions with detailed pros/cons
-3. **Project Structure Generation**: Complete project architecture with file organization
-4. **Code Generation & Self-Healing**: Intelligent code creation with automatic error correction
+- **AI-Powered Code Generation**: Generate code using multiple AI models
+- **Automated Testing**: Generate and run tests for your code
+- **Project Management**: Upload and manage project files
+- **Code Analysis**: Analyze code quality and provide suggestions
+- **Docker Integration**: Run code in isolated Docker containers
 
-### **Advanced AI Capabilities**
-- **Multi-Model Support**: Gemini 2.5 Pro, GPT-4o-mini, GPT-4o, Claude Opus 4, Grok-4
-- **Self-Healing Workflow**: Automatic error detection and correction using Claude Opus 4
-- **Docker Sandbox**: Safe, isolated code execution environment
-- **Fallback Systems**: Template-based generation when AI models are unavailable
+## Prerequisites
 
-### **Comprehensive Project Generation**
-- **Complete Codebases**: Full project structure with all necessary files
-- **Automated Testing**: Comprehensive test suites with pytest
-- **Documentation**: README, API docs, deployment guides
-- **Configuration Files**: Requirements, Docker, environment setup
+- Python 3.13 or higher
+- Docker (for code execution in containers)
+- API keys for AI services (OpenAI, Google AI, etc.)
 
-## 🏗️ Project Structure
+## Installation
 
-```
-AgenticCodeGen&Tester/
-├── app.py                 # Main Streamlit application (2889 lines)
-├── core/
-│   ├── __init__.py
-│   ├── ai_engine.py      # Multi-model AI integration (258 lines)
-│   ├── code_generator.py # Code generation & formatting (259 lines)
-│   ├── test_generator.py # Test case generation (390 lines)
-│   └── error_handler.py  # Error handling & recovery (330 lines)
-├── utils/
-│   ├── __init__.py
-│   ├── file_manager.py   # File operations & Docker sandbox (322 lines)
-│   ├── code_analyzer.py  # Code analysis utilities (294 lines)
-│   └── templates.py      # Code templates (425 lines)
-├── templates/
-│   ├── python_template.py.jinja
-│   ├── test_template.py.jinja
-│   └── requirements_template.txt.jinja
-├── generated/
-│   ├── code/            # Generated source code
-│   ├── tests/           # Generated test files
-│   └── assessments/     # Analysis reports
-├── requirements.txt
-├── setup.py
-├── PROJECT_SUMMARY.md
-├── QUICKSTART.md
-└── .env.example
-```
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd AgenticCodeGen&Tester
+   ```
 
-## 🎯 Workflow Overview
+2. **Create a virtual environment**:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
-### **Stage 1: Input Processing**
-- Upload documents (PDF, DOCX, TXT, MD, CSV) or project ZIPs
-- Extract and analyze requirements
-- Combine with user-specified requirements
+3. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-### **Stage 2: Tech Stack Recommendation**
-- AI analyzes requirements and suggests 3 technology stacks
-- Each stack includes: language, framework, database, dependencies, tools
-- Detailed pros/cons, complexity levels, and time estimates
+4. **Set up environment variables**:
+   ```bash
+   cp env_example.txt .env
+   # Edit .env file and add your API keys
+   ```
 
-### **Stage 3: Project Structure Generation**
-- AI creates comprehensive project file structure
-- Defines directory layout, file names, and purposes
-- Includes configuration, dependencies, documentation, and deployment files
+## Running the Application
 
-### **Stage 4: Code Generation & Self-Healing**
-- AI generates all project files based on structure
-- Docker sandbox executes and tests the code
-- **Self-healing**: If errors occur, Claude Opus 4 analyzes and fixes issues
-- Iterative improvement until all tests pass (max 5 attempts)
-
-## 🛠️ Setup
-
-### 1. **Install Dependencies**
+### Option 1: Using the startup script
 ```bash
-pip install -r requirements.txt
+./start.sh
 ```
 
-### 2. **Environment Configuration**
+### Option 2: Manual startup
 ```bash
-cp env_example.txt .env
-# Add your API keys to .env:
-# OPENAI_API_KEY=your_key_here
-# GOOGLE_API_KEY=your_key_here
-# CLAUDE_API_KEY=your_key_here (optional)
-# GROK4_API_KEY=your_key_here (optional)
-```
-
-### 3. **Launch Application**
-```bash
+source venv/bin/activate
 streamlit run app.py
 ```
 
-## 🎮 Usage
+### Option 3: Stop the application
+```bash
+./stop.sh
+```
 
-### **Code Generation Tab**
-1. **Upload Document**: PDF, DOCX, TXT, MD, CSV, or ZIP project
-2. **Enter Requirements**: Describe what you want to build
-3. **Get Tech Stack**: AI suggests 3 technology options
-4. **Generate Structure**: AI creates project architecture
-5. **Generate Code**: AI creates all files with self-healing
-6. **Download Results**: Get complete, working project
+The application will be available at `http://localhost:8501` (or `http://localhost:8502` if port 8501 is in use)
 
-### **Test Generator Tab**
-- Upload Python files or requirements documents
-- Generate comprehensive test cases
-- Custom test requirements and edge cases
-- Download test files or complete project packages
+## Environment Variables
 
-### **File Manager Tab**
-- View all generated files with metadata
-- Download individual files or complete ZIP archives
-- File statistics and organization
+Create a `.env` file with the following variables:
 
-## 🤖 AI Models Supported
+```env
+# OpenAI API
+OPENAI_API_KEY=your_openai_api_key
 
-| Model | Provider | Use Case |
-|-------|----------|----------|
-| **Gemini 2.5 Pro** | Google | Primary code generation |
-| **GPT-4o-mini** | OpenAI | Fast, cost-effective generation |
-| **GPT-4o** | OpenAI | High-quality, complex logic |
-| **Claude Opus 4** | Anthropic | Self-healing and error correction |
-| **Grok-4** | xAI | Alternative generation option |
+# Google AI API
+GOOGLE_API_KEY=your_google_api_key
 
-## 🔧 Configuration
+# Other API keys as needed
+```
 
-### **AI Model Settings**
-- **Creativity Level**: Temperature control (0.0-1.0)
-- **Response Length**: Max tokens (1000-4000)
-- **Model Selection**: Choose preferred AI model
+## Usage
 
-### **Self-Healing Configuration**
-- **Max Attempts**: Healing iteration limit (default: 5)
-- **Docker Timeout**: Execution time limit (default: 540s)
-- **Error Threshold**: When to trigger healing
+1. **Upload Project Files**: Upload your project files or create new ones
+2. **Generate Code**: Use AI to generate code based on your requirements
+3. **Run Tests**: Automatically generate and run tests for your code
+4. **Analyze Code**: Get code quality analysis and suggestions
+5. **Execute in Docker**: Run your code in isolated Docker containers
 
-## 📊 Generated Output
+## Project Structure
 
-### **Complete Projects Include**
-- **Source Code**: Main application files
-- **Test Suites**: Comprehensive test coverage
-- **Documentation**: README, API docs, setup guides
-- **Configuration**: Requirements, Docker, environment files
-- **Deployment**: Scripts and configuration for production
+```
+AgenticCodeGen&Tester/
+├── app.py                 # Main Streamlit application
+├── core/                  # Core functionality modules
+├── utils/                 # Utility modules
+├── templates/             # Code templates
+├── generated/             # Generated code output
+├── requirements.txt       # Python dependencies
+├── start.sh              # Startup script
+└── README.md             # This file
+```
 
-### **Quality Assurance**
-- **Syntax Validation**: AST parsing and error checking
-- **Code Formatting**: Black formatter integration
-- **Linting**: Flake8 style and error checking
-- **Test Execution**: Automated test running in Docker sandbox
+## Troubleshooting
 
-## 🚀 Advanced Features
+### Common Issues
 
-### **Self-Healing Workflow**
-The core innovation that automatically fixes code issues:
-1. **Error Detection**: Docker sandbox identifies runtime errors
-2. **AI Analysis**: Claude Opus 4 analyzes all files and errors
-3. **Intelligent Fixing**: AI corrects dependencies, imports, logic errors
-4. **Iterative Improvement**: Repeats until success or max attempts
+1. **Port already in use**: Change the port in the startup command
+   ```bash
+   streamlit run app.py --server.port 8502
+   ```
 
-### **Docker Sandbox**
-- **Isolated Execution**: Safe code running environment
-- **Dependency Management**: Automatic package installation
-- **Error Capture**: Detailed error reporting and analysis
-- **Timeout Protection**: Prevents infinite loops
+2. **Docker not running**: Make sure Docker is installed and running
 
-### **Multi-Format Support**
-- **Documents**: PDF, DOCX, TXT, MD, CSV text extraction
-- **Projects**: ZIP file extraction and analysis
-- **Code Files**: Direct Python file processing
-- **Requirements**: Natural language requirement parsing
+3. **API key errors**: Check your `.env` file and ensure API keys are correct
 
-## 📈 Performance
+4. **Import errors**: Make sure all dependencies are installed in the virtual environment
 
-### **Code Generation Speed**
-- **Simple Projects**: 30-60 seconds
-- **Complex Projects**: 2-5 minutes
-- **Self-Healing**: Additional 1-3 minutes per iteration
+### Getting Help
 
-### **Success Rates**
-- **Initial Generation**: 85-90% success rate
-- **After Self-Healing**: 95-98% success rate
-- **Test Coverage**: 80-95% automated test coverage
+If you encounter issues:
+1. Check that all dependencies are installed correctly
+2. Verify your API keys are valid
+3. Ensure Docker is running
+4. Check the console output for error messages
 
-## 🎯 Use Cases
+## Contributing
 
-### **Rapid Prototyping**
-- Generate working prototypes in minutes
-- Test ideas before full implementation
-- Iterate quickly with AI assistance
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-### **Project Kickoff**
-- Create complete project structure
-- Set up development environment
-- Generate boilerplate code
+## License
 
-### **Code Review & Testing**
-- Generate comprehensive test suites
-- Analyze existing code quality
-- Assess code quality
-
-### **Learning & Education**
-- Study AI-generated best practices
-- Learn new technology stacks
-- Understand testing patterns
-
-## 🔮 Future Enhancements
-
-### **Planned Features**
-- **Multi-language Support**: JavaScript, TypeScript, Java, Go, Rust
-- **Advanced AI Models**: Integration with more providers
-- **CI/CD Integration**: Direct deployment pipeline integration
-- **Team Collaboration**: Multi-user support and project sharing
-- **Custom Templates**: User-defined generation patterns
-- **Performance Monitoring**: Runtime analysis and optimization
-
-### **Extensibility**
-- **Plugin System**: Custom analysis and generation plugins
-- **API Integration**: REST API for programmatic access
-- **Database Support**: Persistent storage for projects
-- **Cloud Deployment**: Containerized deployment options
-
-## 🤝 Contributing
-
-The project welcomes contributions:
-- **Code Quality**: Follow PEP 8 and project standards
-- **Testing**: Include tests for new features
-- **Documentation**: Update docs for new functionality
-- **Issues**: Report bugs and feature requests
-
-## 📄 License
-
-This project is open source and available under the MIT License.
-
----
-
-**Built with ❤️ using Python, Streamlit, and Advanced AI**
-
-*Transform your development workflow with intelligent, self-healing code generation.* 
+This project is licensed under the MIT License. 

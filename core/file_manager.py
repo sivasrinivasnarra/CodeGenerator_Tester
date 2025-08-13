@@ -247,7 +247,7 @@ class DockerSandbox:
             # Prepare files
             requirements_content = None
             if files:
-                print(f"DEBUG: Files passed to Docker sandbox: {list(files.keys())}")
+
                 
                 # Check for requirements files in multiple common locations and formats
                 requirements_files = [
@@ -268,21 +268,18 @@ class DockerSandbox:
                     if req_file in files:
                         requirements_content = files[req_file]
                         requirements_file_used = req_file
-                        print(f"DEBUG: Found requirements file: {req_file} with content length: {len(requirements_content)}")
+
                         requirements_found = True
                         break
                 
                 if not requirements_found:
-                    print("WARNING: No requirements.txt found in project files dict!")
-                    print(f"Available files: {list(files.keys())}")
-                    
                     # Look for any file that might contain requirements
                     potential_req_files = [f for f in files.keys() if 'requirement' in f.lower() or f.endswith('.txt')]
                     if potential_req_files:
-                        print(f"DEBUG: Potential requirements files found: {potential_req_files}")
+                        # Found potential requirements files
+                        pass
                     
                     # Try to detect dependencies from Python files and create a basic requirements.txt
-                    print("DEBUG: Attempting to detect dependencies from Python files...")
                     detected_deps = set()
                     gui_dependencies = set()
                     
@@ -308,9 +305,7 @@ class DockerSandbox:
                                         gui_dependencies.add(match)
                     
                     if detected_deps:
-                        print(f"DEBUG: Detected potential dependencies: {detected_deps}")
-                        if gui_dependencies:
-                            print(f"DEBUG: Detected GUI dependencies: {gui_dependencies}")
+
                         
                         # Create a basic requirements.txt
                         requirements_content = "# Auto-detected dependencies\n"
@@ -323,7 +318,7 @@ class DockerSandbox:
                             requirements_content += "# For tkinter: apt-get install python3-tk\n"
                             requirements_content += "# For matplotlib: apt-get install python3-tk python3-dev\n"
                         
-                        print(f"DEBUG: Created auto-detected requirements.txt:\n{requirements_content}")
+
                         requirements_found = True
                         requirements_file_used = "requirements.txt"
                         # Add it to the files dict so it gets copied to container
@@ -352,51 +347,45 @@ class DockerSandbox:
             
             # Special handling for Django projects
             if main_file == "manage.py" and requirements_content is not None:
-                print("DEBUG: Django project detected, ensuring requirements are installed")
+
                 need_pip_install = True
             
             if files:
                 for filename, content in files.items():
                     if filename.endswith('.py') and isinstance(content, str):
                         if 'tkinter' in content or 'import tk' in content:
-                            print("DEBUG: GUI dependencies detected, installing system packages...")
+
                             # Install system packages for GUI support
                             system_cmd = ["sh", "-c", "apt-get update && apt-get install -y python3-tk python3-dev"]
                             system_result = self.exec_in_container(system_cmd, timeout=timeout)
                             if system_result.returncode == 0:
-                                print("DEBUG: System GUI packages installed successfully")
                                 gui_system_deps_installed = True
                             else:
-                                print(f"DEBUG: Failed to install system GUI packages: {system_result.stderr}")
-                                # Add a fallback for headless environments
-                                print("DEBUG: GUI packages failed to install - this is expected in headless Docker environments")
+                                pass
                             break
             if requirements_content is not None:
                 current_hash = self._hash_file_content(requirements_content)
-                print(f"DEBUG: Current requirements hash: {current_hash}")
+
                 # Get previous hash from container
                 prev_hash_result = self.exec_in_container(["cat", hash_path], timeout=timeout)
                 prev_hash = prev_hash_result.stdout.strip() if prev_hash_result.returncode == 0 else None
-                print(f"DEBUG: Previous requirements hash: {prev_hash}")
+
                 if prev_hash != current_hash:
                     need_pip_install = True
-                    print(f"DEBUG: Hash changed, will install requirements")
+
                 else:
-                    print(f"DEBUG: Hash unchanged, but checking if packages are actually installed...")
                     # Check if Django is actually installed
                     django_check = self.exec_in_container(["python", "-c", "import django; print('Django installed')"], timeout=timeout)
                     if django_check.returncode != 0:
-                        print(f"DEBUG: Django not installed despite hash match, forcing install")
                         need_pip_install = True
             # Check if requirements.txt exists in container
             check_req = self.exec_in_container(["sh", "-c", f"test -f {req_path} && echo exists"], timeout=timeout)
-            print(f"DEBUG: requirements.txt exists check: {check_req.stdout.strip()}")
-            print(f"DEBUG: need_pip_install: {need_pip_install}")
+
             
             # Debug: Show contents of requirements.txt in container
             if check_req.returncode == 0 and "exists" in check_req.stdout:
                 req_contents = self.exec_in_container(["cat", req_path], timeout=timeout)
-                print(f"DEBUG: Requirements.txt contents in container:\n{req_contents.stdout}")
+
             if need_pip_install and check_req.returncode == 0:
                 # Handle different requirements file formats
                 if requirements_file_used and requirements_file_used.endswith('.toml'):
@@ -407,12 +396,11 @@ class DockerSandbox:
                     pip_cmd = ["pipenv", "install"]
                 else:
                     pip_cmd = ["pip", "install", "-r", req_path]
-                print("Running Docker exec (pip install):", pip_cmd)
+
                 pip_install_result = self.exec_in_container(pip_cmd, timeout=timeout)
-                print("pip install stdout:\n", pip_install_result.stdout)
-                print("pip install stderr:\n", pip_install_result.stderr)
+
                 if pip_install_result.returncode != 0:
-                    print("pip install failed with exit code", pip_install_result.returncode)
+
                     return {
                         "stdout": pip_install_result.stdout,
                         "stderr": pip_install_result.stderr,
@@ -421,14 +409,13 @@ class DockerSandbox:
                 else:
                     # Store new hash in container
                     self.exec_in_container(["sh", "-c", f"echo '{current_hash}' > {hash_path}"])
-                    print("pip install succeeded and hash updated.")
+
             elif requirements_content is not None and check_req.returncode == 0:
-                print("requirements.txt unchanged, skipping pip install.")
                 # Debug: Show currently installed packages
                 pip_list = self.exec_in_container(["pip", "list"], timeout=timeout)
-                print(f"DEBUG: Currently installed packages:\n{pip_list.stdout}")
             else:
-                print("No requirements.txt found or file doesn't exist. Skipping pip install.")
+                pass
+
             # Check if this is a Flask application
             is_flask_app = False
             if files:
@@ -446,17 +433,16 @@ class DockerSandbox:
             else:
                 cmd = ["python", main_file]
             
-            print("Running Docker exec (main/tests):", cmd)
+
             
             # Use shorter timeout for Flask apps to prevent hanging
             if is_flask_app:
                 flask_timeout = min(60, timeout)  # Max 60 seconds for Flask apps
-                print(f"Flask app detected, using shorter timeout: {flask_timeout} seconds")
+
                 result = self.exec_in_container(cmd, timeout=flask_timeout)
             else:
                 result = self.exec_in_container(cmd, timeout=timeout)
-            print("docker exec stdout:\n", result.stdout)
-            print("docker exec stderr:\n", result.stderr)
+
             
             # Check for GUI-related errors and provide helpful message
             if result.returncode != 0 and ("tkinter" in result.stderr.lower() or "libtk" in result.stderr.lower()):
@@ -469,8 +455,8 @@ class DockerSandbox:
                 "exit_code": result.returncode
             }
         except subprocess.TimeoutExpired:
-            print("Docker command timed out.")
+
             return {"stdout": "", "stderr": "Execution timed out", "exit_code": 124}
         except Exception as e:
-            print("DockerSandbox Exception:", str(e))
+
             return {"stdout": "", "stderr": str(e), "exit_code": 1} 

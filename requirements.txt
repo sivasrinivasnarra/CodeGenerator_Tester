@@ -1,39 +1,38 @@
 # Core Framework
-streamlit==1.28.1
-python-dotenv==1.0.0
+streamlit>=1.28.0
+python-dotenv>=1.0.0
 
 # AI Model Integrations
-openai==1.3.7
-google-generativeai==0.3.2
-requests==2.31.0
+openai>=1.3.0
+google-generativeai>=0.3.0
+requests>=2.31.0
 
 # Code Quality & Testing
-pytest==7.4.3
-pytest-cov==4.1.0
-black==23.11.0
-flake8==6.1.0
-mypy==1.7.1
+pytest>=7.4.0
+pytest-cov>=4.1.0
+black>=23.11.0
+flake8>=6.1.0
+mypy>=1.7.0
 
 # Data Processing & Analysis
-pandas==2.1.3
-numpy==1.25.2
-pyyaml==6.0.1
+pandas>=2.2.0
+numpy>=1.26.0
+pyyaml>=6.0.0
 
 # Template & Documentation
-jinja2==3.1.2
-markdown==3.5.1
+jinja2>=3.1.0
+markdown>=3.5.0
 
 # Visualization
-plotly==5.17.0
+plotly>=5.17.0
 
 # Document Processing
-PyPDF2==3.0.1
-python-docx==0.8.11
+PyPDF2>=3.0.0
+python-docx>=0.8.0
 
 # Container & System
-docker==6.1.3
-psutil==5.9.6
+docker>=6.1.0
+psutil>=5.9.0
 
 # Utilities
-pathlib2==2.3.7
-zipfile36==0.1.3 
+pathlib2>=2.3.0 

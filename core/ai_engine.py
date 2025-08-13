@@ -1,5 +1,5 @@
 """
-AI Engine for handling multiple AI models (OpenAI and Gemini).
+Integrated AI Engine for handling multiple AI models (OpenAI and Gemini) with template fallback.
 """
 
 import os
@@ -8,11 +8,15 @@ from typing import Dict, Any, Optional, List
 import openai
 import google.generativeai as genai
 from dotenv import load_dotenv
+from pathlib import Path
+from jinja2 import Environment, FileSystemLoader
+from datetime import datetime
+import re
 
 load_dotenv()
 
 class AIEngine:
-    """Handles AI model interactions for code generation and analysis."""
+    """Handles AI model interactions for code generation and analysis with template fallback."""
     
     def __init__(self):
         self.openai_client = None
@@ -21,6 +25,11 @@ class AIEngine:
         self.fallback_model = os.getenv('FALLBACK_MODEL', 'gemini-pro')
         self.max_tokens = int(os.getenv('MAX_TOKENS', 4000))
         self.temperature = float(os.getenv('TEMPERATURE', 0.7))
+        
+        # Template management
+        self.template_dir = Path("templates")
+        self.env = Environment(loader=FileSystemLoader(str(self.template_dir)))
+        self._ensure_template_dir()
         
         self._setup_models()
     
@@ -235,11 +244,144 @@ class AIEngine:
         return self._parse_response(response.text)
     
     def _fallback_generation(self, prompt: str) -> Dict[str, Any]:
-        """Fallback generation when primary model fails."""
-        return {
-            "error": "AI model unavailable",
-            "fallback_response": "Please check your API keys and try again."
+        """Fallback to template-based generation when AI models fail."""
+        try:
+            # Extract requirement from prompt
+            requirement = self._extract_requirement_from_prompt(prompt)
+            
+            # Generate code using template
+            code = self.render_code_template(requirement)
+            
+            return {
+                "success": True,
+                "code": code,
+                "source": "template_fallback",
+                "warning": "AI models unavailable, using template-based generation"
+            }
+        except Exception as e:
+            logging.error(f"Template fallback failed: {e}")
+            return {
+                "success": False,
+                "error": f"Both AI models and template fallback failed: {str(e)}"
+            }
+    
+    # Template Management Methods (integrated from TemplateManager)
+    
+    def _ensure_template_dir(self):
+        """Ensure template directory exists."""
+        self.template_dir.mkdir(exist_ok=True)
+    
+    def render_template(self, template_name: str, context: Dict[str, Any]) -> str:
+        """Render a template with the given context."""
+        try:
+            template = self.env.get_template(template_name)
+            return template.render(**context)
+        except Exception as e:
+            return f"Error rendering template {template_name}: {e}"
+    
+    def get_available_templates(self) -> List[str]:
+        """Get list of available templates."""
+        return [f.name for f in self.template_dir.glob("*") if f.is_file()]
+    
+    def create_custom_template(self, name: str, content: str) -> bool:
+        """Create a custom template."""
+        try:
+            template_path = self.template_dir / name
+            with open(template_path, 'w') as f:
+                f.write(content)
+            return True
+        except Exception:
+            return False
+    
+    def get_template_content(self, template_name: str) -> str:
+        """Get the content of a template."""
+        try:
+            template_path = self.template_dir / name
+            with open(template_path, 'r') as f:
+                return f.read()
+        except Exception:
+            return f"Template {template_name} not found"
+    
+    def render_code_template(self, requirement: str, language: str = "python", 
+                           dependencies: List[str] = None) -> str:
+        """Render a code template for the given requirement."""
+        # Generate class name from requirement
+        class_name = self._generate_class_name(requirement)
+        
+        context = {
+            "requirement": requirement,
+            "language": language,
+            "class_name": class_name,
+            "timestamp": datetime.now().isoformat(),
+            "dependencies": dependencies or []
         }
+        
+        if language.lower() == "python":
+            return self.render_template("python_template.py.jinja", context)
+        else:
+            return f"# {language} code for: {requirement}\n# TODO: Implement based on requirement"
+    
+    def render_test_template(self, requirement: str, language: str = "python",
+                           dependencies: List[str] = None) -> str:
+        """Render a test template for the given requirement."""
+        # Generate class name from requirement
+        class_name = self._generate_class_name(requirement)
+        
+        context = {
+            "requirement": requirement,
+            "language": language,
+            "class_name": class_name,
+            "timestamp": datetime.now().isoformat(),
+            "dependencies": dependencies or []
+        }
+        
+        if language.lower() == "python":
+            return self.render_template("test_template.py.jinja", context)
+        else:
+            return f"# {language} tests for: {requirement}\n# TODO: Implement test cases"
+    
+    def render_requirements_template(self, requirement: str, 
+                                   dependencies: List[str] = None) -> str:
+        """Render a requirements template."""
+        context = {
+            "requirement": requirement,
+            "dependencies": dependencies or []
+        }
+        
+        return self.render_template("requirements_template.txt.jinja", context)
+    
+    def _generate_class_name(self, requirement: str) -> str:
+        """Generate a class name from requirement text."""
+        # Clean the requirement text
+        clean_text = re.sub(r'[^a-zA-Z0-9\s]', '', requirement)
+        words = clean_text.split()
+        
+        if not words:
+            return "RequirementImplementation"
+        
+        # Capitalize first letter of each word and join
+        class_name = ''.join(word.capitalize() for word in words[:3])  # Limit to 3 words
+        
+        # Ensure it starts with a letter
+        if not class_name[0].isalpha():
+            class_name = "Requirement" + class_name
+        
+        return class_name + "Implementation"
+    
+    def _extract_requirement_from_prompt(self, prompt: str) -> str:
+        """Extract requirement description from AI prompt."""
+        # Simple extraction - look for common patterns
+        lines = prompt.split('\n')
+        for line in lines:
+            if 'requirement' in line.lower() or 'create' in line.lower() or 'generate' in line.lower():
+                return line.strip()
+        
+        # Fallback to first meaningful line
+        for line in lines:
+            if line.strip() and not line.strip().startswith('#'):
+                return line.strip()[:100]  # Limit length
+        
+        return "Default requirement"
     
     def _parse_response(self, response: str) -> Dict[str, Any]:
         """Parse AI response and extract JSON."""
