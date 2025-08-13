@@ -112,7 +112,7 @@ st.markdown("""
         padding: 4px 12px;
         border-radius: 20px;
         font-size: 0.8rem;
-        margin: 0 6px 8px 0;
+        margin: 0 8px 8px 0;
         font-weight: 500;
     }
     .main-hero h1 {
@@ -2512,4 +2512,4 @@ def detect_main_file(project_files, use_llm=False):
 
 if __name__ == "__main__":
     load_dotenv()
-    main()                
+    main()                    
