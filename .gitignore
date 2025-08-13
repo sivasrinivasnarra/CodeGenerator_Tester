@@ -38,6 +38,9 @@ env/
 .env
 .env.local
 .env.*.local
+.env.save
+.env.backup
+.env.*
 
 # Generated files
 generated/
