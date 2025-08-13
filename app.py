@@ -315,6 +315,40 @@ st.markdown("""
     }
     .kpi-card .label { color: var(--text-500); font-size: 12px; }
     .kpi-card .value { color: var(--primary-600); font-size: 22px; font-weight: 800; }
+    
+    /* WorldLink Labs Poster */
+    .worldlink-poster {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 25px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        z-index: 1000;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .worldlink-poster:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    }
+    
+    .worldlink-poster .title {
+        font-size: 1rem;
+        margin-bottom: 2px;
+    }
+    
+    .worldlink-poster .subtitle {
+        font-size: 0.8rem;
+        opacity: 0.9;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1390,6 +1424,13 @@ def main():
                     handle_and_display_error(e, "clear_files")
         else:
             st.info("No files generated yet. Start by generating some code!")
+    
+    st.markdown("""
+    <div class="worldlink-poster">
+        <div class="title">AI Engineer</div>
+        <div class="subtitle">developed by WorldLink Labs</div>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Tab 6: Test Generator
     with tab_test_gen:
@@ -2512,4 +2553,4 @@ def detect_main_file(project_files, use_llm=False):
 
 if __name__ == "__main__":
     load_dotenv()
-    main()                    
+    main()                            
