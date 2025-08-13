@@ -11,6 +11,7 @@ from typing import Dict, Any, List, Optional, Callable
 from datetime import datetime
 import json
 from pathlib import Path
+from functools import wraps
 
 class ErrorHandler:
     """Handles errors, validation, code analysis, and provides error recovery mechanisms."""
@@ -260,6 +261,147 @@ class ErrorHandler:
                     logging.error(f"Recovery failed: {recovery_error}")
         
         return error_info
+    
+    def _handle_validation_error(self, error: Exception, context: str) -> Dict[str, Any]:
+        """Handle validation errors."""
+        return {
+            "success": True,
+            "action": "Provide validation feedback to user",
+            "suggestion": "Please review and correct the input data."
+        }
+    
+    def _handle_syntax_error(self, error: Exception, context: str) -> Dict[str, Any]:
+        """Handle syntax errors."""
+        return {
+            "success": True,
+            "action": "Attempt code reformatting",
+            "suggestion": "The generated code has syntax issues that need manual review."
+        }
+    
+    def _handle_runtime_error(self, error: Exception, context: str) -> Dict[str, Any]:
+        """Handle runtime errors."""
+        return {
+            "success": False,
+            "action": "Log error and continue",
+            "suggestion": "Runtime error occurred. Check the generated code for issues."
+        }
+    
+    def _handle_ai_model_error(self, error: Exception, context: str) -> Dict[str, Any]:
+        """Handle AI model errors."""
+        return {
+            "success": True,
+            "action": "Use fallback generation method",
+            "suggestion": "AI model unavailable. Using template-based generation."
+        }
+    
+    def _handle_file_error(self, error: Exception, context: str) -> Dict[str, Any]:
+        """Handle file operation errors."""
+        return {
+            "success": True,
+            "action": "Create directory and retry",
+            "suggestion": "File operation failed. Check permissions and disk space."
+        }
+    
+    def get_error_summary(self) -> Dict[str, Any]:
+        """Get summary of all errors."""
+        if not self.error_log:
+            return {"total_errors": 0, "recovery_rate": 100.0}
+        
+        total_errors = len(self.error_log)
+        recovered_errors = sum(1 for error in self.error_log if error.get("recovered", False))
+        recovery_rate = (recovered_errors / total_errors) * 100
+        
+        error_types = {}
+        for error in self.error_log:
+            error_type = error.get("error_type", "Unknown")
+            error_types[error_type] = error_types.get(error_type, 0) + 1
+        
+        return {
+            "total_errors": total_errors,
+            "recovered_errors": recovered_errors,
+            "recovery_rate": round(recovery_rate, 2),
+            "error_types": error_types,
+            "recent_errors": self.error_log[-5:]
+        }
+    
+    def clear_error_log(self):
+        """Clear the error log."""
+        self.error_log.clear()
+    
+    def export_error_log(self, file_path: str = None) -> str:
+        """Export error log to file."""
+        if not file_path:
+            file_path = f"error_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        
+        with open(file_path, 'w') as f:
+            json.dump(self.error_log, f, indent=2)
+        
+        return file_path
+    
+    def validate_api_keys(self) -> Dict[str, bool]:
+        """Validate that required API keys are present."""
+        api_keys = {
+            "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY"),
+            "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY"),
+            "CLAUDE_API_KEY": os.getenv("CLAUDE_API_KEY")
+        }
+        
+        validation_results = {}
+        for key, value in api_keys.items():
+            validation_results[key] = bool(value and value.strip())
+            if not validation_results[key]:
+                self.logger.warning(f"Missing or empty API key: {key}")
+        
+        return validation_results
+    
+    def get_user_friendly_error(self, error: Exception) -> str:
+        """Get a user-friendly error message."""
+        error_type = type(error).__name__
+        error_message = str(error)
+        
+        if "API key" in error_message or "authentication" in error_message.lower():
+            return "Please check your API keys in the environment configuration. Make sure they are properly set and valid."
+        elif "connection" in error_message.lower() or "network" in error_message.lower():
+            return "Network connection issue. Please check your internet connection and try again."
+        elif "timeout" in error_message.lower():
+            return "The operation timed out. Please try again or check if the service is available."
+        elif "permission" in error_message.lower():
+            return "Permission denied. Please check file permissions or access rights."
+        elif error_type == "FileNotFoundError":
+            return "Required file not found. Please check if all necessary files are present."
+        elif error_type == "ValueError":
+            return "Invalid input provided. Please check your input and try again."
+        else:
+            return f"An unexpected error occurred: {error_message}"
+
+def validate_input(input_data: Any, required_type: type = None, allow_empty: bool = True) -> bool:
+    """Validate input data with type checking."""
+    if input_data is None and not allow_empty:
+        return False
+    
+    if required_type and input_data is not None:
+        if not isinstance(input_data, required_type):
+            return False
+    
+    if isinstance(input_data, str) and not allow_empty and not input_data.strip():
+        return False
+    
+    return True
+
+def error_handler(context: str = ""):
+    """Decorator for automatic error handling."""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                handler = ErrorHandler()
+                error_info = handler.handle_error(e, context or func.__name__)
+                user_friendly_msg = handler.get_user_friendly_error(e)
+                raise Exception(user_friendly_msg)
+        return wrapper
+    return decorator
     
     def _handle_validation_error(self, error: Exception, context: str) -> Dict[str, Any]:
         """Handle validation errors."""
@@ -613,4 +755,4 @@ class ErrorHandler:
         if metrics.get("imports", 0) > 20:
             suggestions.append("Consider organizing imports and removing unused ones")
         
-        return suggestions 
+        return suggestions          

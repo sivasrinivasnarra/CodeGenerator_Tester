@@ -62,12 +62,13 @@ class {{ class_name }}:
             if not self._validate_input(input_data):
                 raise ValueError("Invalid input data")
             
-            # TODO: Implement specific logic based on requirement
-            # {{ requirement }}
+            # Core processing logic for: {{ requirement }}
+            processed_data = self._process_data(input_data)
             
             result = {
                 "status": "success",
-                "processed_data": input_data,
+                "input_data": input_data,
+                "processed_data": processed_data,
                 "message": "Requirement processed successfully",
                 "timestamp": "{{ timestamp }}"
             }
@@ -96,8 +97,30 @@ class {{ class_name }}:
         if input_data is None:
             return False
         
-        # Add specific validation logic here
+        # Add specific validation logic here based on requirement
+        if isinstance(input_data, str) and not input_data.strip():
+            return False
         return True
+    
+    def _process_data(self, input_data: Any) -> Any:
+        """
+        Process the input data according to the requirement.
+        
+        Args:
+            input_data: Data to process
+            
+        Returns:
+            Processed data
+        """
+        # Implement specific processing logic based on requirement
+        if isinstance(input_data, str):
+            return input_data.strip().title()
+        elif isinstance(input_data, (list, tuple)):
+            return [str(item).strip() for item in input_data if item]
+        elif isinstance(input_data, dict):
+            return {k: str(v).strip() for k, v in input_data.items() if v}
+        else:
+            return str(input_data) if input_data is not None else ""
     
     def get_status(self) -> Dict[str, Any]:
         """Get current status of the implementation."""

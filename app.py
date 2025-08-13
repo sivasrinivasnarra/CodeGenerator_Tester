@@ -6,17 +6,22 @@ import streamlit as st
 import os
 import json
 import zipfile
+import io
+import logging
+import traceback
 from datetime import datetime
 import tempfile
 import base64
 from pathlib import Path
 import re
 import requests
+import PyPDF2
 from dotenv import load_dotenv
 
 # Import core modules
 from core import AIEngine, Generator, ErrorHandler, FileManager
 from core.file_manager import DockerSandbox
+from core.error_handler import validate_input
 
 # Page configuration
 st.set_page_config(
@@ -25,7 +30,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling (blue theme)
+# Enhanced CSS for professional UI with gradient background
 st.markdown("""
 <style>
     :root {
@@ -41,14 +46,74 @@ st.markdown("""
         --text-500: #64748b;
     }
 
+    /* Professional gradient background */
+    .stApp {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 25%, #f1f5f9 50%, #e8f4f8 75%, #f0f9ff 100%);
+        background-attachment: fixed;
+    }
+    
+    /* Main content area styling */
+    .main .block-container {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-top: 1rem;
+        box-shadow: 0 8px 32px rgba(13, 71, 161, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    /* Sidebar styling */
+    .css-1d391kg {
+        background: linear-gradient(180deg, rgba(13, 71, 161, 0.95) 0%, rgba(25, 118, 210, 0.9) 100%);
+        backdrop-filter: blur(10px);
+    }
+
     .main-hero {
         background: linear-gradient(135deg, var(--primary-700), var(--primary-500));
         color: #fff;
-        padding: 24px 28px;
-        border-radius: 14px;
-        margin: 8px 0 24px 0;
-        box-shadow: 0 6px 20px rgba(13, 71, 161, 0.25);
+        padding: 28px 32px;
+        border-radius: 16px;
+        margin: 8px 0 28px 0;
+        box-shadow: 0 8px 32px rgba(13, 71, 161, 0.3);
         text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+    }
+    
+    /* Enhanced header styling */
+    .header-bar {
+        background: linear-gradient(135deg, var(--primary-600), var(--primary-400));
+        color: #fff;
+        padding: 20px 24px;
+        border-radius: 12px;
+        margin: 0 0 24px 0;
+        box-shadow: 0 6px 24px rgba(13, 71, 161, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .header-bar h1 {
+        margin: 0 0 8px 0;
+        font-size: 1.8rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+    
+    .header-bar p {
+        margin: 0;
+        font-size: 0.95rem;
+        opacity: 0.9;
+    }
+    
+    .chip {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        margin: 0 8px 8px 0;
+        font-weight: 500;
     }
     .main-hero h1 {
         margin: 0;
@@ -63,12 +128,19 @@ st.markdown("""
     }
 
     .feature-card {
-        background-color: var(--card);
-        padding: 16px;
-        border-radius: 12px;
-        margin: 10px 0;
-        border: 1px solid rgba(25, 118, 210, 0.12);
-        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+        background: rgba(255, 255, 255, 0.9);
+        padding: 20px;
+        border-radius: 14px;
+        margin: 12px 0;
+        border: 1px solid rgba(25, 118, 210, 0.15);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        backdrop-filter: blur(5px);
+        transition: all 0.3s ease;
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
     }
     .success-box {
         background: #eaf2ff;
@@ -85,11 +157,20 @@ st.markdown("""
         margin: 12px 0;
     }
     .upload-area {
-        border: 2px dashed rgba(25, 118, 210, 0.35);
-        border-radius: 12px;
-        padding: 22px;
+        border: 2px dashed rgba(25, 118, 210, 0.4);
+        border-radius: 14px;
+        padding: 24px;
         text-align: center;
-        background-color: #f8fbff;
+        background: linear-gradient(135deg, #f8fbff 0%, #f0f9ff 100%);
+        backdrop-filter: blur(5px);
+        transition: all 0.3s ease;
+    }
+    
+    .upload-area:hover {
+        border-color: var(--primary-500);
+        background: linear-gradient(135deg, #f0f9ff 0%, #e8f4f8 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(30, 136, 229, 0.15);
     }
     .tech-stack-card {
         background-color: #e3f2fd;
@@ -115,20 +196,27 @@ st.markdown("""
         background: linear-gradient(135deg, var(--primary-700), var(--primary-500));
     }
 
-    /* Tabs styling */
+    /* Enhanced tabs styling */
     div[role="tablist"] > div {
-        background: #ffffff;
-        border: 1px solid rgba(25, 118, 210, 0.12) !important;
+        background: rgba(255, 255, 255, 0.9) !important;
+        border: 1px solid rgba(25, 118, 210, 0.15) !important;
         color: var(--text-700) !important;
-        border-radius: 10px 10px 0 0 !important;
-        margin-right: 6px;
-        padding: 6px 10px !important;
+        border-radius: 12px 12px 0 0 !important;
+        margin-right: 8px;
+        padding: 8px 16px !important;
+        backdrop-filter: blur(5px);
+        transition: all 0.3s ease;
+    }
+    div[role="tablist"] > div:hover {
+        background: rgba(255, 255, 255, 0.95) !important;
+        transform: translateY(-1px);
     }
     div[role="tablist"] > div[aria-selected="true"] {
         border-bottom: 3px solid var(--primary-500) !important;
         color: var(--primary-600) !important;
         font-weight: 700 !important;
-        background: linear-gradient(180deg, rgba(30,136,229,0.08), rgba(30,136,229,0.02));
+        background: linear-gradient(180deg, rgba(30,136,229,0.12), rgba(30,136,229,0.04)) !important;
+        box-shadow: 0 4px 12px rgba(30, 136, 229, 0.2);
     }
 
     /* Streamlit UI kit overrides to enforce blue */
@@ -227,6 +315,40 @@ st.markdown("""
     }
     .kpi-card .label { color: var(--text-500); font-size: 12px; }
     .kpi-card .value { color: var(--primary-600); font-size: 22px; font-weight: 800; }
+    
+    /* WorldLink Labs Poster */
+    .worldlink-poster {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 25px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        z-index: 1000;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .worldlink-poster:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    }
+    
+    .worldlink-poster .title {
+        font-size: 1rem;
+        margin-bottom: 2px;
+    }
+    
+    .worldlink-poster .subtitle {
+        font-size: 0.8rem;
+        opacity: 0.9;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -708,8 +830,8 @@ def generate_code_for_structure(project_structure, requirement_text, ai_engine, 
 # Helper to render per-tab header (minimal, professional)
 def render_tab_hero(title, badges, subtitle):
     try:
-        chips = ''.join([f"<span class='chip'>{b}</span>" for b in badges])
-        st.markdown(f"<div class='header-bar'><h1>{title}</h1><p>{chips}{subtitle}</p></div>", unsafe_allow_html=True)
+        chips = ' '.join([f"<span class='chip'>{b}</span>" for b in badges])
+        st.markdown(f"<div class='header-bar'><h1>{title}</h1><p>{chips} {subtitle}</p></div>", unsafe_allow_html=True)
     except Exception:
         pass
 
@@ -805,11 +927,9 @@ def main():
     with tab1:
         render_tab_hero(
             "Code Generation",
-            ["Gemini", "GPT-4o", "Claude", "Docker"],
-            "From idea to runnable code — with self-healing."
+            ["AI-Powered", "Multi-Model", "Self-Healing"],
+            "Transform ideas into production-ready code with intelligent error recovery."
         )
-        st.header("Code Generation")
-        st.caption("Turn requirements into runnable code with self-healing and tests.")
         
         # Upload section for code generation
         st.subheader("Requirements")
@@ -1225,11 +1345,9 @@ def main():
     with tab5:
         render_tab_hero(
             "File Manager",
-            ["ZIP Export", "Preview", "History"],
-            "Browse, preview, and export artifacts."
+            ["Export", "Preview", "Organize"],
+            "Manage, preview, and export all generated project artifacts."
         )
-        st.header("Files")
-        st.caption("Preview, export, and manage outputs.")
         
         if st.session_state.generated_files:
             st.subheader("Generated Files")
@@ -1307,12 +1425,19 @@ def main():
         else:
             st.info("No files generated yet. Start by generating some code!")
     
+    st.markdown("""
+    <div class="worldlink-poster">
+        <div class="title">AI Engineer</div>
+        <div class="subtitle">developed by WorldLink Labs</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
     # Tab 6: Test Generator
     with tab_test_gen:
         render_tab_hero(
             "Test Generator",
-            ["pytest", "Coverage", "Agents"],
-            "Design robust tests — faster."
+            ["Comprehensive", "AI-Driven", "Multi-Framework"],
+            "Generate comprehensive test suites with intelligent coverage analysis."
         )
         
         # Test Generation Mode Selection
@@ -2036,11 +2161,9 @@ Generate the complete test file now:
     with tab_dev:
         render_tab_hero(
             "Developer",
-            ["Claude", "Healing", "Docker"],
-            "Ship new features with confidence."
+            ["Feature Development", "Iterative Healing", "Production-Ready"],
+            "Implement and deploy new features with intelligent code healing and validation."
         )
-        st.header("Developer")
-        st.caption("Implement new features with iterative healing.")
 
         source_choice = st.radio("Source", ["Upload ZIP/Files", "GitHub URL"], horizontal=True)
         project_files = {}
@@ -2160,11 +2283,9 @@ Return ONLY updated and new files in this exact format, for each file:
     with tab_onboard:
         render_tab_hero(
             "On Boarding",
-            ["Docs", "Diagrams", "Insights"],
-            "Understand any codebase quickly."
+            ["Documentation", "Architecture", "Team Ready"],
+            "Generate comprehensive documentation and onboarding materials for seamless team integration."
         )
-        st.header("Onboarding")
-        st.caption("Generate clear docs and flow diagrams.")
 
         source_choice2 = st.radio("Source", ["Upload ZIP/Files", "GitHub URL"], horizontal=True, key="onboard_src")
         onboard_files = {}
@@ -2432,4 +2553,4 @@ def detect_main_file(project_files, use_llm=False):
 
 if __name__ == "__main__":
     load_dotenv()
-    main() 
+    main()                            
