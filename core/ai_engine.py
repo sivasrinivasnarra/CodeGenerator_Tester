@@ -106,6 +106,11 @@ class AIEngine:
     def generate_response(self, prompt: str, model: str = None) -> str:
         """Generate a general response using the specified or default model."""
         try:
+            if not prompt or not prompt.strip():
+                raise ValueError("Prompt cannot be empty")
+            
+            model_to_use = model if model else self.default_model
+            
             # Try OpenAI first if specified or as default
             if (model and model.startswith('gpt')) or (not model and self.default_model.startswith('gpt')):
                 if self.openai_client:
@@ -141,11 +146,11 @@ class AIEngine:
                 response = self.gemini_model.generate_content(prompt)
                 return response.text
             
-            raise Exception("No AI models available")
+            raise Exception("No AI models available. Please check your API keys in the environment configuration.")
             
         except Exception as e:
             logging.error(f"Error generating response: {e}")
-            return f"Error generating response: {str(e)}"
+            raise
     
     def _create_code_prompt(self, requirement: str, language: str) -> str:
         """Create prompt for code generation."""
@@ -230,6 +235,9 @@ class AIEngine:
     
     def _generate_with_openai(self, prompt: str) -> Dict[str, Any]:
         """Generate response using OpenAI."""
+        if not self.openai_client:
+            raise Exception("OpenAI client not initialized. Please check your OPENAI_API_KEY.")
+        
         response = self.openai_client.chat.completions.create(
             model=self.default_model,
             messages=[{"role": "user", "content": prompt}],
@@ -240,6 +248,9 @@ class AIEngine:
     
     def _generate_with_gemini(self, prompt: str) -> Dict[str, Any]:
         """Generate response using Gemini."""
+        if not self.gemini_model:
+            raise Exception("Gemini model not initialized. Please check your GOOGLE_API_KEY.")
+        
         response = self.gemini_model.generate_content(prompt)
         return self._parse_response(response.text)
     
@@ -274,10 +285,13 @@ class AIEngine:
     def render_template(self, template_name: str, context: Dict[str, Any]) -> str:
         """Render a template with the given context."""
         try:
+            if not context:
+                context = {}
             template = self.env.get_template(template_name)
             return template.render(**context)
         except Exception as e:
-            return f"Error rendering template {template_name}: {e}"
+            logging.error(f"Error rendering template {template_name}: {e}")
+            return f"# Error rendering template: {e}"
     
     def get_available_templates(self) -> List[str]:
         """Get list of available templates."""
@@ -296,14 +310,14 @@ class AIEngine:
     def get_template_content(self, template_name: str) -> str:
         """Get the content of a template."""
         try:
-            template_path = self.template_dir / name
+            template_path = self.template_dir / template_name
             with open(template_path, 'r') as f:
                 return f.read()
         except Exception:
             return f"Template {template_name} not found"
     
     def render_code_template(self, requirement: str, language: str = "python", 
-                           dependencies: List[str] = None) -> str:
+                           dependencies: List[str] = None, name: str = None) -> str:
         """Render a code template for the given requirement."""
         # Generate class name from requirement
         class_name = self._generate_class_name(requirement)
@@ -312,6 +326,7 @@ class AIEngine:
             "requirement": requirement,
             "language": language,
             "class_name": class_name,
+            "name": name or "main",
             "timestamp": datetime.now().isoformat(),
             "dependencies": dependencies or []
         }
@@ -319,7 +334,7 @@ class AIEngine:
         if language.lower() == "python":
             return self.render_template("python_template.py.jinja", context)
         else:
-            return f"# {language} code for: {requirement}\n# TODO: Implement based on requirement"
+            return f"# {language} code for: {requirement}\n# Implementation needed based on requirement"
     
     def render_test_template(self, requirement: str, language: str = "python",
                            dependencies: List[str] = None) -> str:
@@ -338,14 +353,18 @@ class AIEngine:
         if language.lower() == "python":
             return self.render_template("test_template.py.jinja", context)
         else:
-            return f"# {language} tests for: {requirement}\n# TODO: Implement test cases"
+            return f"# {language} tests for: {requirement}\n# Test cases needed based on requirement"
     
     def render_requirements_template(self, requirement: str, 
                                    dependencies: List[str] = None) -> str:
         """Render a requirements template."""
+        if not dependencies:
+            dependencies = []
+        
         context = {
             "requirement": requirement,
-            "dependencies": dependencies or []
+            "dependencies": dependencies,
+            "timestamp": datetime.now().isoformat()
         }
         
         return self.render_template("requirements_template.txt.jinja", context)
@@ -397,4 +416,4 @@ class AIEngine:
                 return {"raw_response": response}
         except Exception as e:
             logging.error(f"Error parsing response: {e}")
-            return {"raw_response": response, "parse_error": str(e)} 
+            return {"raw_response": response, "parse_error": str(e)}    

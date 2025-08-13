@@ -6,17 +6,22 @@ import streamlit as st
 import os
 import json
 import zipfile
+import io
+import logging
+import traceback
 from datetime import datetime
 import tempfile
 import base64
 from pathlib import Path
 import re
 import requests
+import PyPDF2
 from dotenv import load_dotenv
 
 # Import core modules
 from core import AIEngine, Generator, ErrorHandler, FileManager
 from core.file_manager import DockerSandbox
+from core.error_handler import validate_input
 
 # Page configuration
 st.set_page_config(
@@ -2432,4 +2437,4 @@ def detect_main_file(project_files, use_llm=False):
 
 if __name__ == "__main__":
     load_dotenv()
-    main() 
+    main()  
