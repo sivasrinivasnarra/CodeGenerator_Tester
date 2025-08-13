@@ -1,6 +1,6 @@
 # AI-Powered Development Assistant
 
-A comprehensive AI-powered development assistant built with Streamlit that helps with code generation, testing, and project management.
+A comprehensive AI-powered development assistant built with Streamlit that helps with automated code generation, intelligent testing, and streamlined project management.
 
 ## Features
 
@@ -130,4 +130,4 @@ If you encounter issues:
 
 ## License
 
-This project is licensed under the MIT License. 
+This project is licensed under the MIT License.  
