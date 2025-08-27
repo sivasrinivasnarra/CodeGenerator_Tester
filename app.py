@@ -8,7 +8,6 @@ import json
 import zipfile
 from datetime import datetime
 import tempfile
-import base64
 from pathlib import Path
 import re
 import requests
@@ -250,17 +249,34 @@ if 'last_healing_result' not in st.session_state:
 if 'last_main_file_name' not in st.session_state:
     st.session_state.last_main_file_name = None
 
+# Helper to map UI model names to API model names
+def map_model_name(ui_model: str) -> str:
+    """Map UI model names to actual API model names."""
+    model_mapping = {
+        "Gemini 2.5 Pro": "gemini-1.5-pro",  # Use gemini-1.5-pro as fallback
+        "gpt-4o-mini": "gpt-4o-mini",
+        "gpt-4o": "gpt-4o",
+        "Claude 3.5 Sonnet": "claude-3-5-sonnet-20241022",  # Updated to correct Claude model
+        "Grok-4": "grok-3-latest"
+    }
+    return model_mapping.get(ui_model, ui_model)
+
 # Initialize core components
-@st.cache_resource
-def initialize_components():
+@st.cache_resource(ttl=3600)  # Cache for 1 hour with version tracking
+def initialize_components(version="v2.1"):  # Version parameter to force cache refresh
+    ai_engine = AIEngine()
+    error_handler = ErrorHandler()
+    file_manager = FileManager()
+    generator = Generator(ai_engine=ai_engine, error_handler=error_handler, file_manager=file_manager)
+    
     return {
-        'ai_engine': AIEngine(),
-        'generator': Generator(),
-        'error_handler': ErrorHandler(),
-        'file_manager': FileManager()
+        'ai_engine': ai_engine,
+        'generator': generator,
+        'error_handler': error_handler,
+        'file_manager': file_manager
     }
 
-components = initialize_components()
+components = initialize_components(version="v2.1")
 
 # Helper to log errors and display them
 def handle_and_display_error(error: Exception, context: str):
@@ -444,14 +460,13 @@ def suggest_tech_stack(requirement_text, ai_engine, model="gpt-4o-mini"):
         
         if model == "Grok-4":
             response = generate_with_grok(prompt)
-        elif model == "Claude-Opus-4":
-            response = generate_with_claude(prompt, model_name="claude-opus-4-20250514")
+        elif model == "Claude 3.5 Sonnet":
+            response = generate_with_claude(prompt, model_name="claude-3-5-sonnet-20241022")
         else:
             response = ai_engine.generate_response(prompt, model=model)
         
         # Try to parse JSON from response
         try:
-            import re
             
             # Clean the response - remove any markdown formatting
             cleaned_response = response.strip()
@@ -554,14 +569,13 @@ def generate_project_structure(selected_tech_stack, requirement_text, ai_engine,
         
         if model == "Grok-4":
             response = generate_with_grok(prompt)
-        elif model == "Claude-Opus-4":
-            response = generate_with_claude(prompt, model_name="claude-opus-4-20250514")
+        elif model == "Claude 3.5 Sonnet":
+            response = generate_with_claude(prompt, model_name="claude-3-5-sonnet-20241022")
         else:
             response = ai_engine.generate_response(prompt, model=model)
         
         # Try to parse JSON from response
         try:
-            import re
             
             # Clean the response - remove any markdown formatting
             cleaned_response = response.strip()
@@ -610,7 +624,7 @@ def generate_code_for_structure(project_structure, requirement_text, ai_engine, 
     """Generate complete project files based on project structure"""
     import os
     from pathlib import Path
-    import re
+    
     import streamlit as st
     def flatten_structure(structure):
         """Flatten the project structure into a list of file paths."""
@@ -679,8 +693,8 @@ def generate_code_for_structure(project_structure, requirement_text, ai_engine, 
                 """
             if model == "Grok-4":
                 file_content = generate_with_grok(file_prompt)
-            elif model == "Claude-Opus-4":
-                file_content = generate_with_claude(file_prompt, model_name="claude-opus-4-20250514")
+            elif model == "Claude 3.5 Sonnet":
+                file_content = generate_with_claude(file_prompt, model_name="claude-3-5-sonnet-20241022")
             else:
                 file_content = ai_engine.generate_response(file_prompt, model=model)
             # Clean up any markdown formatting
@@ -706,6 +720,8 @@ def generate_code_for_structure(project_structure, requirement_text, ai_engine, 
         return {"success": False, "error": str(e)}
 
 # Helper to render per-tab header (minimal, professional)
+
+
 def render_tab_hero(title, badges, subtitle):
     try:
         chips = ''.join([f"<span class='chip'>{b}</span>" for b in badges])
@@ -730,9 +746,9 @@ def main():
         # Model selection
         model = st.selectbox(
             "AI Model",
-            ["Gemini 2.5 Pro", "gpt-4o-mini", "gpt-4o", "Claude-Opus-4", "Grok-4"],
+            ["Gemini 2.5 Pro", "gpt-4o-mini", "gpt-4o", "Claude 3.5 Sonnet", "Grok-4"],
             index=0,
-            help="Choose the AI model for code and test generation."
+            help="Choose the AI model for all operations (code generation, test generation, etc.)"
         )
         # Subtle status line in blue theme (replaces red default accents on some themes)
         st.markdown("<div style='height:6px;border-radius:6px;background:linear-gradient(90deg,#1e88e5,#42a5f5);margin:6px 0 10px 0;'></div>", unsafe_allow_html=True)
@@ -740,17 +756,19 @@ def main():
         # Temperature setting
         st.markdown("<div style='color:#0f172a;font-weight:600;margin-top:6px;margin-bottom:2px;'>Creativity</div>", unsafe_allow_html=True)
         temperature = st.slider(
-            "",
+            "Creativity",
             0.0, 1.0, 0.7, 0.1,
-            help="Lower = deterministic, Higher = more creative."
+            help="Lower = deterministic, Higher = more creative.",
+            label_visibility="collapsed"
         )
 
         # Max tokens
         st.markdown("<div style='color:#0f172a;font-weight:600;margin-top:6px;margin-bottom:2px;'>Response Length</div>", unsafe_allow_html=True)
         max_tokens = st.slider(
-            "",
+            "Response Length",
             1000, 4000, 2000, 500,
-            help="Maximum tokens in the AI's response."
+            help="Maximum tokens in the AI's response.",
+            label_visibility="collapsed"
         )
 
         st.markdown("""
@@ -1322,19 +1340,27 @@ def main():
             help="Choose whether to generate tests from existing code or from requirements specifications"
         )
         
-        # Model selection for test generation
-        test_model = st.selectbox(
-            "AI Model for Test Generation",
-            ["Gemini 2.5 Pro", "gpt-4o-mini", "gpt-4o", "Claude-Opus-4", "Grok-4"],
-            index=0,
-            help="Choose the AI model for test generation."
-        )
-        
-        # Check API keys
-        if test_model == "Claude-Opus-4" and not os.environ.get("CLAUDE_API_KEY"):
+        # Check API keys for selected model
+        if model == "Claude 3.5 Sonnet" and not os.environ.get("CLAUDE_API_KEY"):
             st.warning("⚠️ Claude API key not found. Please set CLAUDE_API_KEY in your environment.")
-        elif test_model == "Grok-4" and not os.environ.get("GROK4_API_KEY"):
+        elif model == "Grok-4" and not os.environ.get("GROK4_API_KEY"):
             st.warning("⚠️ Grok-4 API key not found. Please set GROK4_API_KEY in your environment.")
+        
+        # Check if any AI models are available
+        ai_models_available = any([
+            os.environ.get("OPENAI_API_KEY"),
+            os.environ.get("GOOGLE_API_KEY"),
+            os.environ.get("CLAUDE_API_KEY"),
+            os.environ.get("GROK4_API_KEY")
+        ])
+        
+        if not ai_models_available:
+            st.error("❌ No AI API keys found! Requirements-based test generation requires at least one AI model.")
+            st.info("💡 To fix this:")
+            st.info("1. Create a .env file with your API keys")
+            st.info("2. Get API keys from: OpenAI, Google AI, Claude, or Grok-4")
+            st.info("3. Required keys: OPENAI_API_KEY, GOOGLE_API_KEY, CLAUDE_API_KEY, or GROK4_API_KEY")
+            st.stop()
         
         # Test-specific upload area
         if test_mode == "Code-Based Tests":
@@ -1354,8 +1380,6 @@ def main():
                 help="Upload requirements documents (PDF, DOCX, TXT, MD, CSV) to generate comprehensive test cases"
             )
         
-
-        
         # Prompt box
         custom_prompt = st.text_area(
             "Custom Test Requirements",
@@ -1364,659 +1388,294 @@ def main():
             help="Add specific test requirements, edge cases, or testing preferences"
         )
         
+        # Test case count slider (only for Requirements-Based Tests)
+        if test_mode == "Requirements-Based Tests":
+            test_case_count = st.slider(
+                "Number of Test Cases to Generate",
+                min_value=10,
+                max_value=500,
+                value=100,
+                step=10,
+                help="Choose how many test cases to generate (10-500)"
+            )
+        
         # Generate button
         if st.button("Generate Tests", type="primary", key="generate_tests_unified"):
             if not uploaded_files:
                 st.warning("Please upload files to generate tests.")
             else:
-                if test_mode == "Requirements-Based Tests":
-                    # Requirements-based test generation
-                    try:
-                        all_content = []
-                        file_names = []
-                        
-                        # Process uploaded requirements documents
-                        for file in uploaded_files:
-                            doc_content = process_uploaded_document(file)
-                            if doc_content:
-                                all_content.append(f"# Requirements from: {file.name}\n{doc_content}")
-                                file_names.append(f"requirements_{file.name}")
-                        
-                        if all_content:
-                            # Combine all content
-                            combined_content = "\n\n".join(all_content)
-                            
-                            # Debug info - removed to reduce verbosity
-                            
-                            # Build the requirements-based test prompt
-                            requirements_prompt = f"""
-Generate comprehensive test cases from the following requirements/specifications document.
-
-CRITICAL REQUIREMENTS:
-- Generate AT LEAST 100 comprehensive test cases for thorough QA testing
-- HEAVILY FOCUS on FUNCTIONAL TESTING (60-70% of test cases) as these are most suitable for automated agentic testing
-- Include non-functional, integration, security, performance, and usability tests for complete coverage
-- Each test case should have: Test ID, Category, Subcategory, Description, Expected Result, Priority
-- Focus on real-world scenarios and user interactions that can be automated
-- Consider hardware, software, connectivity, performance, security, and usability aspects
-- Prioritize test cases that can be executed by automated testing tools/agents
-
-TEST CASE STRUCTURE:
-- Test ID: TC_XXXX format (TC_0001 to TC_0100+)
-- Category: Functional (60-70%), Non-Functional, Integration, Security, Performance, Usability, etc.
-- Subcategory: Specific area (WiFi, Battery, Camera, App Integration, Bluetooth, GPS, Sensors, etc.)
-- Description: Clear, actionable test scenario that can be automated
-- Expected Result: What should happen when test passes
-- Priority: High, Medium, Low
-- Device Type: Mobile, Tablet, Wearable, Smart TV, etc.
-
-FUNCTIONAL TESTING FOCUS AREAS (60-70% of test cases):
-- Connectivity: WiFi, Cellular, Bluetooth, GPS, NFC
-- Hardware: Camera, Microphone, Speakers, Sensors, Battery
-- App Integration: Background apps, Multi-tasking, App switching
-- User Interface: Touch response, Gestures, Navigation
-- System Functions: Calls, SMS, Email, Notifications
-- Media: Audio, Video, Image capture and playback
-- Storage: Internal storage, SD card, Cloud sync
-- Security: Biometric authentication, App permissions
-- Performance: App launch, Response times, Memory usage
-
-Requirements Document:
-{combined_content}
-
-IMPORTANT: You MUST respond with ONLY valid JSON. No additional text, no explanations, no markdown formatting.
-CRITICAL: All property names MUST be enclosed in double quotes. All string values MUST be enclosed in double quotes.
-Example: "test_id": "TC_0001" (NOT test_id: TC_0001)
-
-Generate comprehensive test cases in this EXACT JSON format:
-{{
-    "test_cases": [
-        {{
-            "test_id": "TC_0001",
-            "category": "Functional",
-            "subcategory": "WiFi",
-            "device_type": "Mobile Device",
-            "description": "Test WiFi maintains stable connection during phone calls",
-            "expected_result": "WiFi connection remains stable, no disconnection during calls",
-            "priority": "High"
-        }},
-        {{
-            "test_id": "TC_0002", 
-            "category": "Functional",
-            "subcategory": "Audio Integration",
-            "device_type": "Mobile Device",
-            "description": "Test YouTube video playback when incoming call arrives",
-            "expected_result": "Video pauses, call audio takes priority, no audio overlap",
-            "priority": "Medium"
-        }},
-        {{
-            "test_id": "TC_0003",
-            "category": "Functional",
-            "subcategory": "Camera",
-            "device_type": "Mobile Device", 
-            "description": "Test camera app opens and captures photo within 3 seconds",
-            "expected_result": "Camera app launches quickly and photo is saved successfully",
-            "priority": "High"
-        }}
-    ]
-}}
-
-Generate AT LEAST 100 test cases with 60-70% being functional tests suitable for automated agentic testing.
-
-Respond with ONLY the JSON object:
-"""
-                            
-                            # Add custom prompt if provided
-                            if custom_prompt.strip():
-                                full_prompt = requirements_prompt + f"\n\nAdditional Requirements:\n{custom_prompt}"
-                            else:
-                                full_prompt = requirements_prompt
-                            
-                            # Generate test cases
-                            try:
-                                with st.spinner("Generating comprehensive test cases from requirements..."):
-                                    if test_model == "Grok-4":
-                                        ai_response = generate_with_grok(full_prompt)
-                                        test_result = {"success": True, "test_code": ai_response}
-                                    elif test_model == "Claude-Opus-4":
-                                        ai_response = generate_with_claude(full_prompt, model_name="claude-opus-4-20250514")
-                                        test_result = {"success": True, "test_code": ai_response}
-                                    else:
-                                        # Use AI engine for other models
-                                        ai_response = components['ai_engine'].generate_response(full_prompt, model=test_model)
-                                        test_result = {"success": True, "test_code": ai_response}
-                                
-                                if test_result['success']:
-                                    # Try to parse JSON response
-                                    try:
-                                        # Extract JSON from response (handle markdown formatting)
-                                        response_text = test_result['test_code']
-                                        
-                                        # Try to find JSON in the response
-                                        extracted_text = None
-                                        
-                                        # Look for JSON code blocks
-                                        if '```json' in response_text:
-                                            block_start = response_text.find('```json') + 7
-                                            block_end = response_text.find('```', block_start)
-                                            extracted_text = response_text[block_start:block_end].strip()
-                                        elif '```' in response_text:
-                                            block_start = response_text.find('```') + 3
-                                            block_end = response_text.find('```', block_start)
-                                            extracted_text = response_text[block_start:block_end].strip()
-                                        else:
-                                            # Try to find JSON object in the text
-                                            object_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-                                            if object_match:
-                                                extracted_text = object_match.group(0)
-                                            else:
-                                                extracted_text = response_text
-                                        
-                                        # Clean up common JSON formatting issues
-                                        if extracted_text:
-                                            # Remove any leading/trailing text that's not JSON
-                                            extracted_text = re.sub(r'^[^{]*', '', extracted_text)
-                                            extracted_text = re.sub(r'[^}]*$', '', extracted_text)
-                                            
-                                            # More aggressive JSON cleaning
-                                            # Fix common AI formatting issues
-                                            
-                                            # First, fix unquoted property names (this is the main issue)
-                                            extracted_text = re.sub(r'([{,])\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', extracted_text)
-                                            
-                                            # Fix common AI formatting issues
-                                            extracted_text = re.sub(r'(\w+):', r'"\1":', extracted_text)  # Add quotes to keys
-                                            extracted_text = re.sub(r':\s*([^",\{\}\[\]\s][^,\{\}\[\]]*[^",\{\}\[\]\s])\s*([,\}\]])', r': "\1"\2', extracted_text)  # Add quotes to string values
-                                            extracted_text = re.sub(r',\s*}', '}', extracted_text)  # Remove trailing commas
-                                            extracted_text = re.sub(r',\s*]', ']', extracted_text)  # Remove trailing commas in arrays
-                                            
-                                            # Additional fixes for common AI issues
-                                            extracted_text = re.sub(r'(["\w])\s*,\s*(["\w])', r'\1,\2', extracted_text)  # Fix spacing around commas
-                                            extracted_text = re.sub(r'}\s*,\s*{', '},{', extracted_text)  # Fix object separators
-                                            extracted_text = re.sub(r']\s*,\s*{', '},{', extracted_text)  # Fix array-object separators
-                                            extracted_text = re.sub(r'}\s*,\s*\[', '},[', extracted_text)  # Fix object-array separators
-                                            
-                                            # Fix missing quotes around string values
-                                            extracted_text = re.sub(r':\s*([^",\{\}\[\]\s][^,\{\}\[\]]*[^",\{\}\[\]\s])\s*([,\}\]])', r': "\1"\2', extracted_text)
-                                            
-                                            # Fix unclosed quotes in string values
-                                            extracted_text = re.sub(r':\s*"([^"]*?)(?=\s*[,}\]])', r': "\1"', extracted_text)
-                                            
-                                            # Fix escaped quotes and other common issues
-                                            extracted_text = extracted_text.replace('\\"', '"')  # Fix escaped quotes
-                                            extracted_text = extracted_text.replace('""', '"')   # Fix double quotes
-                                            
-                                            # Try to fix unclosed quotes
-                                            quote_count = extracted_text.count('"')
-                                            if quote_count % 2 != 0:
-                                                # Add missing quote at the end
-                                                extracted_text += '"'
-                                            
-                                            # Additional cleaning for common AI mistakes
-                                            extracted_text = re.sub(r'([^"])\s*,\s*([^"])', r'\1,\2', extracted_text)  # Fix spacing around commas
-                                            extracted_text = re.sub(r'}\s*,\s*{', '},{', extracted_text)  # Fix object separators
-                                            extracted_text = re.sub(r']\s*,\s*{', '},{', extracted_text)  # Fix array-object separators
-                                            extracted_text = re.sub(r'}\s*,\s*\[', '},[', extracted_text)  # Fix object-array separators
-                                            
-                                            # Remove any remaining problematic characters
-                                            extracted_text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', extracted_text)  # Remove control characters
-                                            
-                                            # Final cleanup - ensure proper JSON structure
-                                            extracted_text = re.sub(r',\s*([}\]])', r'\1', extracted_text)  # Remove trailing commas before closing brackets
-                                        
-                                        # Try to parse the cleaned JSON
-                                        try:
-                                            test_data = json.loads(extracted_text)
-                                        except json.JSONDecodeError as inner_e:
-                                            # Show debug info for JSON parsing issues
-                                            st.warning(f"JSON parsing failed: {inner_e}")
-                                            st.info("Attempting to extract test cases array...")
-                                            
-                                            # Show the cleaned JSON for debugging (first 1000 chars)
-                                            st.info("Debug: First 1000 characters of cleaned JSON:")
-                                            st.code(extracted_text[:1000], language='json')
-                                            # If still failing, try to extract just the test_cases array
-                                            # Look for test_cases array specifically
-                                            test_cases_match = re.search(r'"test_cases"\s*:\s*\[(.*?)\]', extracted_text, re.DOTALL)
-                                            if test_cases_match:
-                                                test_cases_text = test_cases_match.group(1)
-                                                # Try to parse individual test case objects
-                                                test_case_matches = re.findall(r'\{[^{}]*\}', test_cases_text)
-                                                test_cases = []
-                                                
-                                                for i, test_case_text in enumerate(test_case_matches):
-                                                    try:
-                                                        # Clean up the test case text
-                                                        cleaned_case = re.sub(r'(\w+):', r'"\1":', test_case_text)
-                                                        cleaned_case = re.sub(r':\s*([^",\{\}\[\]\s][^,\{\}\[\]]*[^",\{\}\[\]\s])\s*([,\}\]])', r': "\1"\2', cleaned_case)
-                                                        cleaned_case = re.sub(r',\s*}', '}', cleaned_case)
-                                                        
-                                                        case_data = json.loads(cleaned_case)
-                                                        case_data['test_id'] = case_data.get('test_id', f'TC_{i+1:04d}')
-                                                        test_cases.append(case_data)
-                                                    except (json.JSONDecodeError, ValueError, KeyError):
-                                                        continue
-                                                
-                                                if test_cases:
-                                                    test_data = {'test_cases': test_cases}
-                                                else:
-                                                    raise inner_e
-                                            else:
-                                                # Try one more approach - look for individual test case objects
-                                                test_case_objects = re.findall(r'\{[^{}]*"test_id"[^{}]*\}', extracted_text, re.DOTALL)
-                                                if test_case_objects:
-                                                    test_cases = []
-                                                    for i, obj in enumerate(test_case_objects):
-                                                        try:
-                                                            # Clean up the object
-                                                            cleaned_obj = re.sub(r'([{,])\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', obj)
-                                                            cleaned_obj = re.sub(r':\s*([^",\{\}\[\]\s][^,\{\}\[\]]*[^",\{\}\[\]\s])\s*([,\}\]])', r': "\1"\2', cleaned_obj)
-                                                            cleaned_obj = re.sub(r',\s*}', '}', cleaned_obj)
-                                                            
-                                                            case_data = json.loads(cleaned_obj)
-                                                            test_cases.append(case_data)
-                                                        except (json.JSONDecodeError, ValueError, KeyError):
-                                                            continue
-                                                    
-                                                    if test_cases:
-                                                        test_data = {'test_cases': test_cases}
-                                                    else:
-                                                        raise inner_e
-                                                else:
-                                                    raise inner_e
-                                        
-                                        # Display test cases in a table
-                                        st.subheader("Generated Test Cases")
-                                        
-                                        # Create a DataFrame for better display
-                                        import pandas as pd
-                                        test_cases = test_data.get('test_cases', [])
-                                        if test_cases:
-                                            df = pd.DataFrame(test_cases)
-                                            st.dataframe(df, use_container_width=True)
-                                            
-                                            # Export to Excel
-                                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                                            excel_filename = f"test_cases_{timestamp}.xlsx"
-                                            
-                                            # Create Excel file with formatting
-                                            with pd.ExcelWriter(excel_filename, engine='openpyxl') as writer:
-                                                df.to_excel(writer, sheet_name='Test Cases', index=False)
-                                                
-                                                # Auto-adjust column widths
-                                                worksheet = writer.sheets['Test Cases']
-                                                for column in worksheet.columns:
-                                                    max_length = 0
-                                                    column_letter = column[0].column_letter
-                                                    for cell in column:
-                                                        try:
-                                                            if len(str(cell.value)) > max_length:
-                                                                max_length = len(str(cell.value))
-                                                        except (TypeError, AttributeError):
-                                                            pass
-                                                    adjusted_width = min(max_length + 2, 50)
-                                                    worksheet.column_dimensions[column_letter].width = adjusted_width
-                                            
-                                            # Download buttons
-                                            col1, col2 = st.columns(2)
-                                            with col1:
-                                                with open(excel_filename, 'rb') as f:
-                                                    st.download_button(
-                                                        "Download Excel File",
-                                                        f.read(),
-                                                        file_name=excel_filename,
-                                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                                                    )
-                                            
-                                            with col2:
-                                                # Also provide JSON download
-                                                test_cases_filename = f"test_cases_{timestamp}.json"
-                                                st.download_button(
-                                                    "Download JSON File",
-                                                    json.dumps(test_data, indent=2),
-                                                    file_name=test_cases_filename,
-                                                    mime="application/json"
-                                                )
-                                            
-                                            # Save to session state
-                                            st.session_state.generated_files.append({
-                                                'name': excel_filename,
-                                                'path': os.path.abspath(excel_filename),
-                                                'type': 'test_cases',
-                                                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                            })
-                                            
-                                            st.success(f"✅ Generated {len(test_cases)} test cases successfully!")
-                                            
-                                        else:
-                                            st.warning("No test cases found in the response")
-                                            
-                                    except json.JSONDecodeError as e:
-                                        st.error(f"Failed to parse JSON response: {e}")
-                                        st.info("Attempting to generate test cases from raw response...")
-                                        
-                                        # Enhanced fallback parsing logic
-                                        try:
-                                            # Try to extract test cases from the raw response
-                                            response_text = test_result['test_code']
-                                            test_cases = []
-                                            
-                                            # Look for patterns like "TC_XXXX" or test case structures
-                                            lines = response_text.split('\n')
-                                            current_case = {}
-                                            
-                                            for line in lines:
-                                                line = line.strip()
-                                                if not line:
-                                                    continue
-                                                
-                                                # Try to parse CSV-like format
-                                                if line.count(',') >= 5 and '"' in line:
-                                                    # Handle malformed CSV with extra quotes and commas
-                                                    import re
-                                                    
-                                                    # Remove leading numbers and tabs
-                                                    line = re.sub(r'^[0-9\s\t]*', '', line)
-                                                    
-                                                    # Extract quoted fields using regex
-                                                    quoted_pattern = r'"([^"]*(?:\\"[^"]*)*)"'
-                                                    matches = re.findall(quoted_pattern, line)
-                                                    
-                                                    # Clean each quoted match
-                                                    valid_fields = []
-                                                    for match in matches:
-                                                        # Handle escaped quotes
-                                                        cleaned = match.replace('\\"', '"')
-                                                        # Remove any remaining artifacts
-                                                        cleaned = re.sub(r'^[0-9\s\t]*', '', cleaned)
-                                                        cleaned = re.sub(r'["\']+$', '', cleaned)
-                                                        cleaned = cleaned.strip()
-                                                        
-                                                        if cleaned and len(cleaned) > 1:
-                                                            valid_fields.append(cleaned)
-                                                    
-                                                    # If we don't have enough fields, try splitting by comma
-                                                    if len(valid_fields) < 6:
-                                                        parts = line.split(',')
-                                                        valid_fields = []
-                                                        
-                                                        for part in parts:
-                                                            # Remove quotes and extra whitespace
-                                                            cleaned = part.strip().strip('"').strip("'")
-                                                            # Remove artifacts
-                                                            cleaned = re.sub(r'^[0-9\s\t]*["\']*', '', cleaned)
-                                                            cleaned = re.sub(r'["\']*[0-9\s\t]*$', '', cleaned)
-                                                            cleaned = re.sub(r'\s+', ' ', cleaned)
-                                                            cleaned = cleaned.replace('\\"', '"').replace('""', '"')
-                                                            # Remove commas and quotes
-                                                            cleaned = re.sub(r'^[,\s]*', '', cleaned)
-                                                            cleaned = re.sub(r'[,\s]*$', '', cleaned)
-                                                            cleaned = re.sub(r'["\']+', '', cleaned)
-                                                            cleaned = cleaned.strip()
-                                                            
-                                                            if cleaned and cleaned != ',' and len(cleaned) > 1:
-                                                                valid_fields.append(cleaned)
-                                                    
-                                                    if len(valid_fields) >= 6:
-                                                        test_case = {
-                                                            'test_id': valid_fields[0] if len(valid_fields) > 0 else f'TC_{len(test_cases)+1:04d}',
-                                                            'category': valid_fields[1] if len(valid_fields) > 1 else 'Functional',
-                                                            'subcategory': valid_fields[2] if len(valid_fields) > 2 else 'General',
-                                                            'device_type': valid_fields[3] if len(valid_fields) > 3 else 'Mobile Device',
-                                                            'description': valid_fields[4] if len(valid_fields) > 4 else 'Test case',
-                                                            'expected_result': valid_fields[5] if len(valid_fields) > 5 else 'Expected result',
-                                                            'priority': valid_fields[6] if len(valid_fields) > 6 else 'Medium'
-                                                        }
-                                                        test_cases.append(test_case)
-                                                        continue
-                                                
-                                                # Try to parse key-value format
-                                                if ':' in line and ('test_id' in line.lower() or 'tc_' in line.lower()):
-                                                    if current_case:
-                                                        test_cases.append(current_case)
-                                                    current_case = {}
-                                                    
-                                                    # Extract test ID
-                                                    if 'test_id' in line.lower() or 'tc_' in line.lower():
-                                                        parts = line.split(':', 1)
-                                                        if len(parts) == 2:
-                                                            test_id = parts[1].strip().strip('"').strip("'")
-                                                            current_case['test_id'] = test_id
-                                                
-                                                elif ':' in line and current_case:
-                                                    parts = line.split(':', 1)
-                                                    if len(parts) == 2:
-                                                        key = parts[0].strip().lower()
-                                                        value = parts[1].strip().strip('"').strip("'")
-                                                        
-                                                        if 'category' in key:
-                                                            current_case['category'] = value
-                                                        elif 'subcategory' in key:
-                                                            current_case['subcategory'] = value
-                                                        elif 'description' in key:
-                                                            current_case['description'] = value
-                                                        elif 'expected' in key and 'result' in key:
-                                                            current_case['expected_result'] = value
-                                                        elif 'priority' in key:
-                                                            current_case['priority'] = value
-                                                        elif 'device' in key and 'type' in key:
-                                                            current_case['device_type'] = value
-                                            
-                                            # Add the last case if exists
-                                            if current_case:
-                                                test_cases.append(current_case)
-                                            
-                                            if test_cases:
-                                                # Create DataFrame and export
-                                                import pandas as pd
-                                                df = pd.DataFrame(test_cases)
-                                                st.subheader("Generated Test Cases (Parsed from Raw Response)")
-                                                st.dataframe(df, use_container_width=True)
-                                                
-                                                # Export to Excel
-                                                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                                                excel_filename = f"test_cases_{timestamp}.xlsx"
-                                                
-                                                with pd.ExcelWriter(excel_filename, engine='openpyxl') as writer:
-                                                    df.to_excel(writer, sheet_name='Test Cases', index=False)
-                                                    worksheet = writer.sheets['Test Cases']
-                                                    for column in worksheet.columns:
-                                                        max_length = 0
-                                                        column_letter = column[0].column_letter
-                                                        for cell in column:
-                                                            try:
-                                                                if len(str(cell.value)) > max_length:
-                                                                    max_length = len(str(cell.value))
-                                                            except:
-                                                                pass
-                                                        adjusted_width = min(max_length + 2, 50)
-                                                        worksheet.column_dimensions[column_letter].width = adjusted_width
-                                                
-                                                # Download button
-                                                with open(excel_filename, 'rb') as f:
-                                                    st.download_button(
-                                                        "Download Excel File",
-                                                        f.read(),
-                                                        file_name=excel_filename,
-                                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                                                    )
-                                                
-                                                st.success(f"✅ Successfully parsed {len(test_cases)} test cases from raw response!")
-                                                
-                                                # Save to session state
-                                                st.session_state.generated_files.append({
-                                                    'name': excel_filename,
-                                                    'path': os.path.abspath(excel_filename),
-                                                    'type': 'test_cases',
-                                                    'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                                })
-                                            else:
-                                                st.error("Could not extract test cases from the raw response")
-                                                st.subheader("Raw AI Response")
-                                                st.code(test_result['test_code'], language='text')
-                                                
-                                        except Exception as parse_error:
-                                            st.error(f"Failed to extract test cases: {parse_error}")
-                                            st.subheader("Raw AI Response")
-                                            st.code(test_result['test_code'], language='text')
-                                        
-                                else:
-                                    st.error(f"❌ Test generation failed: {test_result.get('error', 'Unknown error')}")
-                                    
-                            except Exception as ai_error:
-                                st.error(f"AI model error: {ai_error}")
-                                
-                        else:
-                            st.warning("No content found to generate tests for.")
-                            
-                    except Exception as e:
-                        handle_and_display_error(e, "requirements_test_generation")
-                else:
-                    # Original code-based test generation
-                    with st.spinner("Generating code-based test cases..."):
-                        try:
+                try:
+                    if test_mode == "Requirements-Based Tests":
+                        # Requirements-based test generation
+                        with st.spinner("Generating comprehensive test cases from requirements..."):
+                            # Process uploaded requirements documents
                             all_content = []
-                            file_names = []
-                            
-                            # Process uploaded files
-                            if uploaded_files:
-                                for file in uploaded_files:
-                                    file_ext = file.name.lower().split('.')[-1]
-                                    
-                                    if file_ext == 'py':
-                                        # Python file
-                                        content = file.read().decode('utf-8')
-                                        all_content.append(f"# File: {file.name}\n{content}")
-                                        file_names.append(file.name)
-                                        
-                                    elif file_ext == 'zip':
-                                        # Project ZIP
-                                        project_dir = extract_project_zip(file)
-                                        if project_dir:
-                                            python_files = list_python_files(project_dir)
-                                            for py_file in python_files:
-                                                try:
-                                                    with open(py_file, 'r', encoding='utf-8') as f:
-                                                        content = f.read()
-                                                    all_content.append(f"# File: {os.path.basename(py_file)}\n{content}")
-                                                    file_names.append(os.path.basename(py_file))
-                                                except UnicodeDecodeError as e:
-                                                    st.warning(f"Could not read {py_file} due to encoding issues (likely a binary or metadata file): {e}")
-                                                except Exception as e:
-                                                    st.warning(f"Could not read {py_file}: {e}")
-                                        
-                                    else:
-                                        # Requirements document
-                                        doc_content = process_uploaded_document(file)
-                                        if doc_content:
-                                            all_content.append(f"# Requirements from: {file.name}\n{doc_content}")
-                                            file_names.append(f"requirements_{file.name}")
+                            for file in uploaded_files:
+                                doc_content = process_uploaded_document(file)
+                                if doc_content:
+                                    all_content.append(f"# Requirements from: {file.name}\n{doc_content}")
                             
                             if all_content:
                                 # Combine all content
                                 combined_content = "\n\n".join(all_content)
                                 
-                                # Debug info
-                                st.info(f"Processing {len(file_names)} files with {test_model} model")
-                                st.info(f"Combined content length: {len(combined_content)} characters")
-                            
-                                # Build the prompt
-                                one_shot_example = '''
-# Example function
-def add(a, b):
-    """Return the sum of a and b."""
-    return a + b
-
-def test_add_valid():
-    assert add(2, 3) == 5
-
-def test_add_invalid():
-    import pytest
-    with pytest.raises(TypeError):
-        add(2, None)
-'''
+                                # Add custom prompt if provided
+                                if custom_prompt.strip():
+                                    combined_content += f"\n\nAdditional Requirements:\n{custom_prompt}"
                                 
-                                # Create the full prompt
-                                base_prompt = f"""
-{one_shot_example}
-
-Generate comprehensive Python unit tests using pytest for the following code and requirements.
-
-CRITICAL REQUIREMENTS:
-- Generate ONLY actual, working test code - NO placeholders, NO TODOs, NO commented-out code
-- Write real test functions with actual assertions and test data
-- For each function/class found in the code, create at least 2-3 meaningful test cases
-- Include both positive tests (valid inputs) and negative tests (edge cases, invalid inputs)
-- Use realistic test data that matches the expected input/output types
-- Use pytest-style assertions (assert statements)
-- Import the actual functions/classes being tested
-- Make tests that would actually run and validate the code functionality
-
-Code to test:
-{combined_content}
-
-Generate the complete test file now:
-"""
+                                # Generate requirements-based tests using Generator with selected model
+                                result = components['generator'].generate_requirements_tests(
+                                    requirements=combined_content,
+                                    test_count=test_case_count,
+                                    model=map_model_name(model)
+                                )
+                                
+                                if result['success']:
+                                    # Display results
+                                    st.success(f"✅ Generated {len(result['test_cases'])} test cases successfully!")
+                                    
+                                    # Create DataFrame for display
+                                    import pandas as pd
+                                    df = pd.DataFrame(result['test_cases'])
+                                    st.dataframe(df, use_container_width=True)
+                                    
+                                    # Export to Excel
+                                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                    excel_filename = f"test_cases_{timestamp}.xlsx"
+                                    
+                                    with pd.ExcelWriter(excel_filename, engine='openpyxl') as writer:
+                                        df.to_excel(writer, sheet_name='Test Cases', index=False)
+                                        
+                                        # Auto-adjust column widths
+                                        worksheet = writer.sheets['Test Cases']
+                                        for column in worksheet.columns:
+                                            max_length = 0
+                                            column_letter = column[0].column_letter
+                                            for cell in column:
+                                                try:
+                                                    if len(str(cell.value)) > max_length:
+                                                        max_length = len(str(cell.value))
+                                                except (TypeError, AttributeError):
+                                                    pass
+                                            adjusted_width = min(max_length + 2, 50)
+                                            worksheet.column_dimensions[column_letter].width = adjusted_width
+                                    
+                                    # Download buttons
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        with open(excel_filename, 'rb') as f:
+                                            st.download_button(
+                                                "Download Excel File",
+                                                f.read(),
+                                                file_name=excel_filename,
+                                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                            )
+                                    
+                                    with col2:
+                                        # Also provide JSON download
+                                        test_cases_filename = f"test_cases_{timestamp}.json"
+                                        st.download_button(
+                                            "Download JSON File",
+                                            json.dumps({"test_cases": result['test_cases']}, indent=2),
+                                            file_name=test_cases_filename,
+                                            mime="application/json"
+                                        )
+                                    
+                                    # Save to session state
+                                    st.session_state.generated_files.append({
+                                        'name': excel_filename,
+                                        'path': os.path.abspath(excel_filename),
+                                        'type': 'test_cases',
+                                        'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                    })
+                                    
+                                    # Show analysis
+                                    if result.get('analysis'):
+                                        st.subheader("📊 Analysis")
+                                        st.json(result['analysis'])
+                                    
+                                else:
+                                    st.error(f"❌ Test generation failed: {result.get('error', 'Unknown error')}")
+                            else:
+                                st.warning("No content found to generate tests for.")
+                    else:
+                        # Code-based test generation
+                        with st.spinner("Generating code-based test cases..."):
+                            # Process uploaded files
+                            all_content = []
+                            file_names = []
+                            
+                            for file in uploaded_files:
+                                file_ext = file.name.lower().split('.')[-1]
+                                
+                                if file_ext == 'py':
+                                    # Python file
+                                    content = file.read().decode('utf-8')
+                                    all_content.append(f"# File: {file.name}\n{content}")
+                                    file_names.append(file.name)
+                                    
+                                elif file_ext == 'zip':
+                                    # Project ZIP
+                                    project_dir = extract_project_zip(file)
+                                    if project_dir:
+                                        python_files = list_python_files(project_dir)
+                                        for py_file in python_files:
+                                            try:
+                                                with open(py_file, 'r', encoding='utf-8') as f:
+                                                    content = f.read()
+                                                all_content.append(f"# File: {os.path.basename(py_file)}\n{content}")
+                                                file_names.append(os.path.basename(py_file))
+                                            except UnicodeDecodeError as e:
+                                                st.warning(f"Could not read {py_file} due to encoding issues: {e}")
+                                            except Exception as e:
+                                                st.warning(f"Could not read {py_file}: {e}")
+                                
+                                else:
+                                    # Requirements document
+                                    doc_content = process_uploaded_document(file)
+                                    if doc_content:
+                                        all_content.append(f"# Requirements from: {file.name}\n{doc_content}")
+                                        file_names.append(f"requirements_{file.name}")
+                            
+                            if all_content:
+                                # Combine all content
+                                combined_content = "\n\n".join(all_content)
                                 
                                 # Add custom prompt if provided
                                 if custom_prompt.strip():
-                                    full_prompt = base_prompt + f"\n\nAdditional Requirements:\n{custom_prompt}"
-                                else:
-                                    full_prompt = base_prompt
+                                    combined_content += f"\n\nAdditional Requirements:\n{custom_prompt}"
                                 
-                                # Generate tests
-                                try:
-                                    st.info(f"🤖 Generating tests with {test_model}...")
-                                    
-                                    if test_model == "Grok-4":
-                                        ai_response = generate_with_grok(full_prompt)
-                                        test_result = {"success": True, "test_code": ai_response}
-                                    elif test_model == "Claude-Opus-4":
-                                        ai_response = generate_with_claude(full_prompt, model_name="claude-opus-4-20250514")
-                                        test_result = {"success": True, "test_code": ai_response}
-                                    else:
-                                        # Use AI engine for other models
-                                        ai_response = components['ai_engine'].generate_response(full_prompt, model=test_model)
-                                        test_result = {"success": True, "test_code": ai_response}
-                                    
-                                    # Validate the response
-                                    if not test_result.get("test_code") or len(test_result["test_code"].strip()) < 100:
-                                        st.warning("⚠️ AI response seems too short. Falling back to basic test generator.")
-                                        test_result = components['test_generator'].generate_tests(combined_content, language='python')
-                                        
-                                except Exception as ai_error:
-                                    st.error(f"AI model error: {ai_error}")
-                                    st.info("🔄 Falling back to basic test generator...")
-                                    # Fallback to basic test generator
-                                    test_result = components['test_generator'].generate_tests(combined_content, language='python')
+                                # Generate tests using Generator with selected model
+                                result = components['generator'].generate_tests(
+                                    code=combined_content,
+                                    language='python',
+                                    test_type='unit',
+                                    model=map_model_name(model)
+                                )
                                 
-                                if test_result['success']:
-                                    test_code = test_result['test_code']
-                                    
-                                    # Check if the generated code looks like a template
-                                    if "TODO" in test_code or "placeholder" in test_code.lower():
-                                        st.warning("⚠️ Generated code appears to be a template. This might indicate an AI model issue.")
-                                    
+                                if result['success']:
                                     st.success("✅ Tests generated successfully!")
                                     
-                                    # Display results
-                                    st.subheader("📋 Generated Test Code")
-                                    st.code(test_code, language='python')
+                                    # Handle both old and new response formats
+                                    if 'test_code' in result:
+                                        # Old format - single test file
+                                        st.subheader("📋 Generated Test Code")
+                                        st.code(result['test_code'], language='python')
+                                        
+                                        # Download button for single file
+                                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                        filename = f"test_generated_{timestamp}.py"
+                                        st.download_button(
+                                            label="📥 Download Test File",
+                                            data=result['test_code'],
+                                            file_name=filename,
+                                            mime="text/plain"
+                                        )
+                                    elif 'test_files' in result:
+                                        # New format - comprehensive test suite
+                                        st.subheader("📋 Generated Test Suite")
+                                        
+                                        # Show test structure
+                                        if result.get('test_structure'):
+                                            with st.expander("📁 Test Suite Structure"):
+                                                st.json(result['test_structure'])
+                                        
+                                        # Show test files
+                                        if result.get('test_files'):
+                                            st.subheader("📁 Generated Test Files")
+                                            for file_path, full_path in result['test_files'].items():
+                                                if file_path.endswith('.py'):
+                                                    st.write(f"• **{file_path}**")
+                                                    try:
+                                                        with open(full_path, 'r') as f:
+                                                            file_content = f.read()
+                                                        with st.expander(f"View {file_path}"):
+                                                            st.code(file_content, language='python')
+                                                    except Exception as e:
+                                                        st.error(f"Error reading {file_path}: {e}")
+                                                else:
+                                                    st.write(f"• {file_path}")
+                                        
+                                        # Download button for test suite
+                                        if result.get('saved_path'):
+                                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                            suite_dir = os.path.dirname(result['saved_path'])
+                                            try:
+                                                import zipfile
+                                                import tempfile
+                                                
+                                                with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp_file:
+                                                    with zipfile.ZipFile(tmp_file.name, 'w') as zipf:
+                                                        for root, dirs, files in os.walk(suite_dir):
+                                                            for file in files:
+                                                                file_path = os.path.join(root, file)
+                                                                arcname = os.path.relpath(file_path, suite_dir)
+                                                                zipf.write(file_path, arcname)
+                                                    
+                                                    with open(tmp_file.name, 'rb') as f:
+                                                        zip_data = f.read()
+                                                    
+                                                    st.download_button(
+                                                        label="📥 Download Test Suite (ZIP)",
+                                                        data=zip_data,
+                                                        file_name=f"test_suite_{timestamp}.zip",
+                                                        mime="application/zip"
+                                                    )
+                                                    
+                                                    # Clean up temp file
+                                                    os.unlink(tmp_file.name)
+                                            except Exception as e:
+                                                st.error(f"Error creating ZIP: {e}")
                                     
                                     # File information
                                     st.subheader("📁 Files Processed")
                                     for file_name in file_names:
                                         st.write(f"• {file_name}")
                                     
-                                    # Download button
-                                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                                    filename = f"test_generated_{timestamp}.py"
-                                    st.download_button(
-                                        label="📥 Download Test File",
-                                        data=test_code,
-                                        file_name=filename,
-                                        mime="text/plain"
-                                    )
+                                    # Show analysis
+                                    if result.get('analysis'):
+                                        st.subheader("📊 Code Analysis")
+                                        
+                                        # Display project information
+                                        analysis = result['analysis']
+                                        col1, col2, col3 = st.columns(3)
+                                        with col1:
+                                            st.metric("Project Type", analysis.get('project_type', 'unknown').replace('_', ' ').title())
+                                        with col2:
+                                            st.metric("Complexity", analysis.get('complexity', 'low').title())
+                                        with col3:
+                                            st.metric("Structure", analysis.get('module_structure', 'standard').replace('_', ' ').title())
+                                        
+                                        # Show detailed analysis
+                                        with st.expander("📋 Detailed Code Analysis"):
+                                            st.json(analysis)
+                                    
+                                    # Show test results if available
+                                    if result.get('run_results'):
+                                        st.subheader("🧪 Test Results")
+                                        
+                                        # Show execution method
+                                        execution_method = result['run_results'].get('execution_method', 'unknown')
+                                        if execution_method == 'docker':
+                                            st.success("🐳 Tests executed in Docker container for isolation")
+                                        elif execution_method == 'local':
+                                            st.info("💻 Tests executed locally")
+                                        
+                                        # Display test metrics
+                                        col1, col2, col3, col4 = st.columns(4)
+                                        with col1:
+                                            st.metric("Tests Run", result['run_results'].get('tests_run', 0))
+                                        with col2:
+                                            st.metric("Tests Passed", result['run_results'].get('tests_passed', 0))
+                                        with col3:
+                                            st.metric("Tests Failed", result['run_results'].get('tests_failed', 0))
+                                        with col4:
+                                            coverage = result['run_results'].get('coverage', 0.0)
+                                            st.metric("Coverage %", f"{coverage:.1f}%")
+                                        
+                                        # Show detailed results
+                                        with st.expander("📋 Detailed Test Results"):
+                                            st.json(result['run_results'])
                                     
                                     # Show custom prompt if used
                                     if custom_prompt.strip():
@@ -2024,11 +1683,12 @@ Generate the complete test file now:
                                         st.info(custom_prompt)
                                 
                                 else:
-                                    st.error(f"❌ Test generation failed: {test_result.get('error', 'Unknown error')}")
+                                    st.error(f"❌ Test generation failed: {result.get('error', 'Unknown error')}")
                             else:
                                 st.warning("No content found to generate tests for.")
-                        except Exception as e:
-                            handle_and_display_error(e, "code_test_generation")
+                                
+                except Exception as e:
+                    handle_and_display_error(e, "test_generation")
         
         # Tips and guidance - removed to reduce verbosity
     
@@ -2071,7 +1731,7 @@ Generate the complete test file now:
             repo_url = st.text_input("GitHub repository URL", placeholder="https://github.com/owner/repo")
             if repo_url and st.button("Fetch Repo"):
                 try:
-                    import tempfile, subprocess, shutil
+                    import subprocess, shutil
                     tmpdir = tempfile.mkdtemp(prefix="repo_")
                     subprocess.run(["git", "clone", "--depth", "1", repo_url, tmpdir], check=True, capture_output=True)
                     for root, _, files in os.walk(tmpdir):
@@ -2123,16 +1783,16 @@ Return ONLY updated and new files in this exact format, for each file:
 <file content>
 <<END>>
 """
-                    claude_resp = generate_with_claude(prompt, model_name="claude-opus-4-20250514", max_tokens=3500)
+                    claude_resp = generate_with_claude(prompt, model_name="claude-3-5-sonnet-20241022", max_tokens=3500)
 
-                    import re
+                    
                     pattern = re.compile(r"<<FILENAME:(.*?)>>\n(.*?)<<END>>", re.DOTALL)
                     updates = {m.group(1).strip(): m.group(2) for m in pattern.finditer(claude_resp)}
                     if updates:
                         project_files.update(updates)
 
                     # Run self-healing loop in Docker
-                    result = ai_self_healing_workflow(project_files, code_model="claude-opus-4-20250514", main_file=main_file, max_attempts=max_attempts)
+                    result = ai_self_healing_workflow(project_files, code_model="claude-3-5-sonnet-20241022", main_file=main_file, max_attempts=max_attempts)
 
                     if result.get("success"):
                         st.success("Feature implemented and project runs successfully.")
@@ -2196,7 +1856,7 @@ Return ONLY updated and new files in this exact format, for each file:
             repo_url2 = st.text_input("GitHub repository URL", placeholder="https://github.com/owner/repo", key="onboard_repo")
             if repo_url2 and st.button("Fetch Repo", key="onboard_fetch"):
                 try:
-                    import tempfile, subprocess, shutil
+                    import subprocess, shutil
                     tmpdir = tempfile.mkdtemp(prefix="repo_")
                     subprocess.run(["git", "clone", "--depth", "1", repo_url2, tmpdir], check=True, capture_output=True)
                     for root, _, files in os.walk(tmpdir):
@@ -2239,7 +1899,7 @@ EXTRA FOCUS (optional): {doc_prompt_extra}
 
 Return ONLY Markdown. Include Mermaid diagrams using ```mermaid blocks when appropriate.
 """
-                    doc_markdown = generate_with_claude(doc_prompt, model_name="claude-opus-4-20250514", max_tokens=3500)
+                    doc_markdown = generate_with_claude(doc_prompt, model_name="claude-3-5-sonnet-20241022", max_tokens=3500)
 
                     # Save to assessments/docs
                     filename = f"ONBOARDING_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
@@ -2273,7 +1933,6 @@ def sanitize_for_filename(text: str) -> str:
 
 # Placeholder for Grok-4 API call
 def generate_with_grok(prompt, api_key=None, model_name="grok-3-latest", temperature=0.7, stream=False):
-    import requests
     import os
     if api_key is None:
         api_key = os.environ.get("GROK4_API_KEY")
@@ -2301,8 +1960,7 @@ if 'Grok-4' in ["Gemini 2.5 Pro", "gpt-4o-mini", "gpt-4o", "Grok-4"] and not os.
     st.warning("Grok-4 API key is not set. Please add GROK4_API_KEY to your .env file to use Grok-4.")
 
 # Claude API call function
-def generate_with_claude(prompt, api_key=None, model_name="claude-3-opus-20240229", temperature=0.7, max_tokens=2048):
-    import requests
+def generate_with_claude(prompt, api_key=None, model_name="claude-3-5-sonnet-20241022", temperature=0.7, max_tokens=2048):
     import os
     if api_key is None:
         api_key = os.environ.get("CLAUDE_API_KEY")
@@ -2391,9 +2049,9 @@ ERROR:
 
 **Focus on fixing the requirements.txt dependency order first, then any other issues.**
 """
-        claude_response = generate_with_claude(fix_prompt, model_name="claude-opus-4-20250514")
+        claude_response = generate_with_claude(fix_prompt, model_name="claude-3-5-sonnet-20241022")
         
-        import re
+        
         file_pattern = re.compile(r"<<FILENAME:(.*?)>>\n(.*?)<<END>>", re.DOTALL)
         new_files = {}
         matches = list(file_pattern.finditer(claude_response))
@@ -2425,7 +2083,7 @@ def detect_main_file(project_files, use_llm=False):
     # 5. Use LLM if needed
     if use_llm and len(py_files) > 1:
         prompt = f"""Given the following Python files, which one is the main entry point? List only the filename.\n\n""" + "\n\n".join([f"{fname}:\n{project_files[fname][:500]}" for fname in py_files])
-        main_file = generate_with_claude(prompt, model_name="claude-opus-4-20250514").strip().split()[0]
+        main_file = generate_with_claude(prompt, model_name="claude-3-5-sonnet-20241022").strip().split()[0]
         if main_file in project_files:
             return main_file
     return None
